@@ -1,10 +1,19 @@
 import SwiftUI
+import AppKit
 import AgentChatLib
 
 @main
 struct AgentChatApp: App {
-    @StateObject private var settings = AppSettings()
-    @StateObject private var server = ServerProcess(port: 4020)
+    @StateObject private var settings: AppSettings
+    @StateObject private var server: ServerProcess
+
+    init() {
+        let appSettings = AppSettings()
+        _settings = StateObject(wrappedValue: appSettings)
+        _server = StateObject(wrappedValue: ServerProcess(port: appSettings.port))
+
+        NSApplication.shared.setActivationPolicy(.regular)
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -15,6 +24,7 @@ struct AgentChatApp: App {
                 .onAppear {
                     settings.serverURL = server.serverURL
                     server.start()
+                    NSApplication.shared.activate(ignoringOtherApps: true)
                 }
         }
         .windowStyle(.titleBar)

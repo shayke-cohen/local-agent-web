@@ -13,12 +13,13 @@ public final class ChatViewModel: ObservableObject {
     }
 
     public let ws = WebSocketClient()
-    private var serverURL = "http://localhost:4020"
+    private var serverURL: String
     private var currentStreamingId: String?
 
     public var onSessionUpdated: ((String, [ChatMessage]) -> Void)?
 
-    public init() {
+    public init(serverURL: String = "http://localhost:\(AppSettings.defaultPort)") {
+        self.serverURL = serverURL
         ws.delegate = self
     }
 

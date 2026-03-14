@@ -1,0 +1,13 @@
+tests/
+examples/
+docs/
+.cursor/
+.github/
+.gitignore
+coverage/
+*.test.js
+*.spec.js
+vitest.config.js
+CLAUDE.md
+AGENTS.md
+SPEC.md

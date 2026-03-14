@@ -2,13 +2,29 @@
 
 A framework for adding Claude Code capabilities to any application — web, desktop, or server. Provides a Node.js server that wraps the [Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-sdk), a layered configuration model, and multiple client integration options.
 
+[![npm version](https://img.shields.io/npm/v/@shaykec/agent-web.svg)](https://www.npmjs.com/package/@shaykec/agent-web)
+[![license](https://img.shields.io/npm/l/@shaykec/agent-web.svg)](https://github.com/shayke-cohen/local-agent-web/blob/main/LICENSE)
+
 ### Web App — Multi-Session Chat
 
-![Web multi-session demo](docs/screenshots/web-multi-session.png)
+![Web multi-session demo](https://raw.githubusercontent.com/shayke-cohen/local-agent-web/main/docs/screenshots/web-multi-session.png)
 
 ### macOS App — Native SwiftUI with Embedded Server
 
-![macOS multi-session demo](docs/screenshots/macos-multi-session.png)
+![macOS multi-session demo](https://raw.githubusercontent.com/shayke-cohen/local-agent-web/main/docs/screenshots/macos-multi-session.png)
+
+## Install
+
+```bash
+npm install @shaykec/agent-web
+```
+
+Peer dependencies (install as needed):
+
+```bash
+npm install @anthropic-ai/claude-agent-sdk   # Required for server
+npm install react react-dom                    # Required for React hooks/components
+```
 
 ## How It Works
 
@@ -586,9 +602,36 @@ Seven reference implementations — each serves as documentation, test target, a
 | [`vanilla-js`](examples/vanilla-js/) | 4012 | Framework-agnostic client | `node examples/vanilla-js/server.js` |
 | [`express-middleware`](examples/express-middleware/) | 4014 | Express `app.use()` integration | `node examples/express-middleware/server.js` |
 | [`multi-session`](examples/multi-session/) | 4015 | Config negotiation + concurrent sessions | `node examples/multi-session/server.js` |
-| [`macos-app`](examples/macos-app/) | 4020 | Native macOS app (**embedded server**) | `cd examples/macos-app/AgentChat && swift run` |
+| [`macos-app`](examples/macos-app/) | 4020 | Native macOS app (**embedded server**) | `cd examples/macos-app/AgentChat && bash build-app.sh && open .build/AgentChat.app` |
 
 ### Quickstart
+
+```bash
+npm install @shaykec/agent-web @anthropic-ai/claude-agent-sdk
+```
+
+Create `server.js`:
+
+```javascript
+import { createAgentServer } from '@shaykec/agent-web/server';
+
+const agent = createAgentServer({
+  config: {
+    model: 'claude-sonnet-4-6',
+    permissionMode: 'bypassPermissions',
+    systemPrompt: 'You are a helpful coding assistant.',
+  },
+});
+
+agent.listen(3456);
+console.log('Server running at http://localhost:3456');
+```
+
+```bash
+node server.js
+```
+
+Or clone the repo for full examples:
 
 ```bash
 git clone https://github.com/shayke-cohen/local-agent-web.git
@@ -645,6 +688,16 @@ argus test tests/argus/macos-api.yaml
 ## Architecture
 
 See [docs/architecture.md](docs/architecture.md) for detailed system diagrams, data flows, session lifecycle, and security model.
+
+## AI Agent Skill
+
+An integration skill is available for AI coding agents (Cursor, Claude Code) to help add `@shaykec/agent-web` to new projects:
+
+```
+.cursor/skills/integrate-agent-web/SKILL.md
+```
+
+The skill walks through all 7 integration paths step-by-step — from embeddable components to native desktop apps — with complete code examples, config deep dives, and a verification checklist. When using Cursor or Claude Code in a project that depends on `@shaykec/agent-web`, the agent can read this skill to produce correct integration code.
 
 ## License
 

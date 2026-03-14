@@ -12,7 +12,8 @@ let package = Package(
         .executableTarget(
             name: "AgentChat",
             dependencies: ["AgentChatLib"],
-            path: "AgentChat"
+            path: "AgentChat",
+            exclude: ["Info.plist"]
         ),
         .testTarget(
             name: "AgentChatTests",

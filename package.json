@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Generic framework for exposing Claude Code to web apps — server middleware, React hooks, and embeddable components",
   "type": "module",
+  "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
     "./protocol": "./src/protocol/index.js",
@@ -12,9 +13,12 @@
     "./client": "./src/vanilla/index.js"
   },
   "files": [
-    "src/"
+    "src/",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
+    "prepublishOnly": "npm test",
     "test": "vitest run",
     "test:unit": "vitest run tests/protocol tests/server tests/client tests/vanilla",
     "test:integration": "vitest run tests/integration",
@@ -49,7 +53,11 @@
   "author": "shaykec",
   "repository": {
     "type": "git",
-    "url": "https://github.com/shayke-cohen/local-agent-web.git"
+    "url": "git+https://github.com/shayke-cohen/local-agent-web.git"
+  },
+  "homepage": "https://github.com/shayke-cohen/local-agent-web#readme",
+  "bugs": {
+    "url": "https://github.com/shayke-cohen/local-agent-web/issues"
   },
   "license": "MIT",
   "dependencies": {

@@ -9,6 +9,7 @@ struct ChatView: View {
     @State private var inputText = ""
     @State private var showSettings = false
     @State private var showLogs = false
+    @FocusState private var inputFocused: Bool
 
     var body: some View {
         NavigationSplitView {
@@ -47,12 +48,10 @@ struct ChatView: View {
                 settings.serverURL = url
                 vm.configure(serverURL: url)
                 vm.connect(to: "ws://localhost:\(port)/ws")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    inputFocused = true
+                }
             }
-        }
-        .onChange(of: settings.serverURL) { _, newValue in
-            vm.configure(serverURL: newValue)
-            vm.disconnect()
-            vm.connect(to: settings.wsURL)
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
@@ -207,7 +206,7 @@ struct ChatView: View {
                 Text("Starting agent-web server...")
                     .font(.title3)
                     .foregroundStyle(.secondary)
-                Text("Launching Node.js process on port 4020")
+                Text("Launching Node.js process on port \(settings.port)")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
 
@@ -290,8 +289,10 @@ struct ChatView: View {
             TextField("Ask Claude...", text: $inputText, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...5)
+                .focused($inputFocused)
                 .onSubmit { sendMessage() }
                 .disabled(!isServerRunning)
+                .accessibilityIdentifier("chat-input")
 
             if vm.isStreaming {
                 ProgressView()
@@ -304,7 +305,7 @@ struct ChatView: View {
             .buttonStyle(.plain)
             .foregroundStyle(canSend ? Color.blue : Color.gray)
             .disabled(!canSend)
-            .keyboardShortcut(.return, modifiers: [])
+            .accessibilityIdentifier("send-button")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
