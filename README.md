@@ -83,6 +83,24 @@ function App() {
 
 One line to render. The component handles connection, session management, streaming, tool-use display, and reconnection. Pass `config` props to control model, tools, and system prompt.
 
+Every section of `ClaudeChat` is customizable via render props:
+
+```jsx
+<ClaudeChat
+  url="http://localhost:3456"
+  theme="dark"
+  themeTokens={{ primary: '#58a6ff', background: '#0d1117' }}
+  labels={{ title: 'MyApp', placeholder: 'Ask anything...', send: 'Go' }}
+  renderWelcome={({ send }) => <MyWelcome onQuickStart={send} />}
+  renderMessage={(msg, theme) => <MyMessage msg={msg} />}
+  renderInput={(props) => <MyInput {...props} />}
+  handshake={{ clientType: 'myapp', capabilities: ['chat'] }}
+  onRawMessage={(msg) => {
+    if (msg.type.startsWith('custom:')) handleCustomMessage(msg);
+  }}
+/>
+```
+
 ### 2. React Hooks (Custom UI)
 
 Best for: full control over the UI while letting the framework handle protocol and state.
@@ -107,7 +125,15 @@ import { ClaudeProvider, useChat, useSessions } from '@shaykec/agent-web/react';
 
 function App() {
   return (
-    <ClaudeProvider url="http://localhost:3456" config={{ model: 'claude-sonnet-4-6' }}>
+    <ClaudeProvider
+      url="http://localhost:3456"
+      config={{ model: 'claude-sonnet-4-6' }}
+      onMessage={(msg) => {
+        // Route non-chat messages (visual commands, notifications, etc.)
+        if (msg.type.startsWith('canvas:')) handleVisual(msg);
+      }}
+      handshake={{ clientType: 'myapp', capabilities: ['dashboard'] }}
+    >
       <MyChatUI />
     </ClaudeProvider>
   );
@@ -117,6 +143,30 @@ function MyChatUI() {
   const { messages, send, stop, isStreaming, resolvedConfig } = useChat();
   const { sessions, create, resume } = useSessions();
   // Render however you want
+}
+```
+
+Or use the composable building blocks for even more control:
+
+```jsx
+import { useChat, useSessions } from '@shaykec/agent-web/react';
+import { ChatMessages, ChatInput, SessionPicker } from '@shaykec/agent-web/components';
+
+function MyChatUI() {
+  const chat = useChat();
+  const { sessions, resume } = useSessions();
+
+  return (
+    <div className="my-layout">
+      <SessionPicker sessions={sessions} onResume={resume} activeSessionId={chat.sessionId} />
+      <ChatMessages
+        messages={chat.messages}
+        renderWelcome={() => <MyWelcomeScreen />}
+        renderMessage={(msg) => <MyCustomBubble msg={msg} />}
+      />
+      <ChatInput onSend={chat.send} onStop={chat.stop} isStreaming={chat.isStreaming} />
+    </div>
+  );
 }
 ```
 
@@ -566,6 +616,7 @@ All messages use a standard JSON envelope:
 | Category | Types | Direction |
 |---|---|---|
 | Chat | `stream`, `assistant`, `tool-use`, `tool-result`, `status`, `error`, `user` | Server → Client |
+| Chat | `send`, `stop` | Client → Server |
 | Session | `created`, `resumed`, `list`, `closed` | Server → Client |
 | Config | `request`, `resolved` | Bidirectional |
 | System | `connect`, `disconnect`, `heartbeat` | Bidirectional |
@@ -584,7 +635,7 @@ All messages use a standard JSON envelope:
 |---|---|
 | `@shaykec/agent-web/server` | `createAgentServer()`, `SessionManager`, `ConfigResolver`, `Transport` |
 | `@shaykec/agent-web/react` | `ClaudeProvider`, `useChat`, `useSessions`, `useConnection` |
-| `@shaykec/agent-web/components` | `ClaudeChat`, `ClaudeMessage`, `ClaudeToolUse` |
+| `@shaykec/agent-web/components` | Drop-in: `ClaudeChat`, `ClaudeMessage`, `ClaudeToolUse`. Composable: `ChatMessages`, `ChatInput`, `ChatStatus`, `SessionPicker`. Theme: `THEME_PRESETS` |
 | `@shaykec/agent-web/client` | `ClaudeClient` (vanilla JS, framework-agnostic) |
 | `@shaykec/agent-web/protocol` | Message types, `createEnvelope`, `parseEnvelope`, config schema |
 
@@ -644,11 +695,11 @@ node examples/minimal-chat/server.js
 
 ## Testing
 
-**327+ total tests** across Node.js, Swift, and Argus YAML:
+**340+ total tests** across Node.js, Swift, and Argus YAML:
 
 | Tier | Command | Tests | What It Tests |
 |---|---|---|---|
-| Unit | `npm run test:unit` | ~200 | Protocol, server logic, config (MCPs, plugins, agents, permissions), client hooks, components, vanilla client |
+| Unit | `npm run test:unit` | ~220 | Protocol, server logic, config (MCPs, plugins, agents, permissions), client hooks, composable components, vanilla client |
 | Integration | `npm run test:integration` | ~50 | Real HTTP server, WebSocket handshake, config negotiation, macOS server |
 | E2E (SDK) | `npm run test:e2e` | 5 | Real Claude Agent SDK via local CLI (no API key needed) |
 | E2E (Web) | `npm run test:e2e` | 7 | Web app HTML, health, config endpoint, sessions, WebSocket handshake |
@@ -660,7 +711,7 @@ node examples/minimal-chat/server.js
 | Swift | `swift test` (in `examples/macos-app/AgentChat`) | 49 | Models, settings, view model, server process |
 
 ```bash
-npm test                  # All Node.js tests (278)
+npm test                  # All Node.js tests (295)
 npm run test:e2e          # Real Claude Code CLI + web app
 npm run test:coverage     # Coverage report
 
