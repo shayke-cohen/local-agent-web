@@ -1,22 +1,33 @@
 import SwiftUI
+import AgentChatLib
 
 struct ChatView: View {
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var server: ServerProcess
     @StateObject private var vm = ChatViewModel()
     @State private var inputText = ""
     @State private var showSettings = false
+    @State private var showLogs = false
 
     var body: some View {
         VStack(spacing: 0) {
             toolbar
             Divider()
-            messageList
+            if case .running = server.status {
+                messageList
+            } else {
+                serverStatusView
+            }
             Divider()
             inputBar
         }
-        .onAppear {
-            vm.configure(serverURL: settings.serverURL)
-            vm.connect(to: settings.wsURL)
+        .onChange(of: server.status) { _, newStatus in
+            if case .running(let port) = newStatus {
+                let url = "http://localhost:\(port)"
+                settings.serverURL = url
+                vm.configure(serverURL: url)
+                vm.connect(to: "ws://localhost:\(port)/ws")
+            }
         }
         .onChange(of: settings.serverURL) { _, newValue in
             vm.configure(serverURL: newValue)
@@ -26,6 +37,10 @@ struct ChatView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environmentObject(settings)
+                .environmentObject(server)
+        }
+        .sheet(isPresented: $showLogs) {
+            ServerLogView(server: server)
         }
     }
 
@@ -33,12 +48,8 @@ struct ChatView: View {
 
     private var toolbar: some View {
         HStack {
-            Circle()
-                .fill(statusColor)
-                .frame(width: 8, height: 8)
-            Text(vm.connectionStatus.rawValue.capitalized)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            serverIndicator
+            connectionIndicator
 
             Spacer()
 
@@ -48,6 +59,12 @@ struct ChatView: View {
                     .foregroundStyle(.tertiary)
                     .help(sid)
             }
+
+            Button(action: { showLogs.toggle() }) {
+                Image(systemName: "terminal")
+            }
+            .help("Server logs")
+            .buttonStyle(.plain)
 
             Button(action: vm.clearChat) {
                 Image(systemName: "trash")
@@ -66,12 +83,99 @@ struct ChatView: View {
         .background(.bar)
     }
 
-    private var statusColor: Color {
+    private var serverIndicator: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(serverColor)
+                .frame(width: 8, height: 8)
+            Text(serverLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var connectionIndicator: some View {
+        Group {
+            if case .running = server.status {
+                HStack(spacing: 4) {
+                    Text("•")
+                        .foregroundStyle(wsColor)
+                    Text(vm.connectionStatus.rawValue.capitalized)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var serverColor: Color {
+        switch server.status {
+        case .running: .green
+        case .starting: .orange
+        case .stopped: .gray
+        case .failed: .red
+        }
+    }
+
+    private var serverLabel: String {
+        switch server.status {
+        case .running(let port): "Server :\(port)"
+        case .starting: "Starting server..."
+        case .stopped: "Server stopped"
+        case .failed: "Server error"
+        }
+    }
+
+    private var wsColor: Color {
         switch vm.connectionStatus {
         case .connected: .green
         case .connecting: .orange
         case .disconnected: .red
         }
+    }
+
+    // MARK: - Server status view (shown while server isn't running)
+
+    private var serverStatusView: some View {
+        VStack(spacing: 16) {
+            switch server.status {
+            case .starting:
+                ProgressView()
+                    .controlSize(.large)
+                Text("Starting agent-web server...")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                Text("Launching Node.js process on port 4020")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+
+            case .failed(let message):
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.red)
+                Text("Server Failed to Start")
+                    .font(.title3)
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                Button("Retry") { server.start() }
+
+            case .stopped:
+                Image(systemName: "power")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.secondary)
+                Text("Server is stopped")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                Button("Start Server") { server.start() }
+
+            case .running:
+                EmptyView()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Message list
@@ -109,7 +213,7 @@ struct ChatView: View {
             Text("Start a conversation")
                 .font(.title3)
                 .foregroundStyle(.secondary)
-            Text("Messages are powered by Claude via the agent-web server.")
+            Text("The agent-web server is running. Type a message to begin.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -125,6 +229,7 @@ struct ChatView: View {
                 .textFieldStyle(.plain)
                 .lineLimit(1...5)
                 .onSubmit { sendMessage() }
+                .disabled(!isServerRunning)
 
             if vm.isStreaming {
                 ProgressView()
@@ -135,8 +240,8 @@ struct ChatView: View {
                 Image(systemName: "paperplane.fill")
             }
             .buttonStyle(.plain)
-            .foregroundStyle(inputText.trimmingCharacters(in: .whitespaces).isEmpty ? Color.gray : Color.blue)
-            .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty)
+            .foregroundStyle(canSend ? Color.blue : Color.gray)
+            .disabled(!canSend)
             .keyboardShortcut(.return, modifiers: [])
         }
         .padding(.horizontal, 16)
@@ -144,11 +249,55 @@ struct ChatView: View {
         .background(.bar)
     }
 
+    private var isServerRunning: Bool {
+        if case .running = server.status { return true }
+        return false
+    }
+
+    private var canSend: Bool {
+        isServerRunning && !inputText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     private func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         vm.send(text)
         inputText = ""
+    }
+}
+
+// MARK: - Server Log View
+
+struct ServerLogView: View {
+    @ObservedObject var server: ServerProcess
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Server Logs")
+                    .font(.headline)
+                Spacer()
+                Button("Clear") { server.logs.removeAll() }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+            }
+            .padding()
+
+            Divider()
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(server.logs.enumerated()), id: \.offset) { _, line in
+                        Text(line)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(line.contains("Error") || line.contains("error") ? .red : .primary)
+                            .textSelection(.enabled)
+                    }
+                }
+                .padding()
+            }
+        }
+        .frame(width: 600, height: 400)
     }
 }
 

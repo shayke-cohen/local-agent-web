@@ -25,6 +25,7 @@
     "test:all": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
+    "example:quickstart": "node examples/minimal-chat/server.js",
     "example:minimal": "node examples/minimal-chat/server.js",
     "example:embeddable": "node examples/react-embeddable/server.js",
     "example:hooks": "node examples/react-custom-hooks/server.js",

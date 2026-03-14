@@ -1,17 +1,30 @@
 import SwiftUI
+import AgentChatLib
 
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var server: ServerProcess
 
     var body: some View {
         Form {
-            Section("Server Connection") {
-                TextField("Server URL", text: $settings.serverURL)
-                    .textFieldStyle(.roundedBorder)
+            Section("Server") {
+                LabeledContent("Status") {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(serverColor)
+                            .frame(width: 8, height: 8)
+                        Text(serverLabel)
+                    }
+                }
 
-                Text("WebSocket: \(settings.wsURL)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                LabeledContent("URL", value: settings.serverURL)
+                LabeledContent("WebSocket", value: settings.wsURL)
+
+                if case .running = server.status {
+                    Button("Stop Server") { server.stop() }
+                } else {
+                    Button("Start Server") { server.start() }
+                }
             }
 
             Section("About") {
@@ -24,6 +37,24 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 400, height: 250)
+        .frame(width: 450, height: 300)
+    }
+
+    private var serverColor: Color {
+        switch server.status {
+        case .running: .green
+        case .starting: .orange
+        case .stopped: .gray
+        case .failed: .red
+        }
+    }
+
+    private var serverLabel: String {
+        switch server.status {
+        case .running(let port): "Running on port \(port)"
+        case .starting: "Starting..."
+        case .stopped: "Stopped"
+        case .failed(let msg): "Error: \(msg)"
+        }
     }
 }

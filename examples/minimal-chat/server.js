@@ -1,11 +1,18 @@
 /**
- * Minimal agent-web server example.
+ * Minimal agent-web quickstart — run and open in your browser.
  *
  * Run: node examples/minimal-chat/server.js
- * Then open http://localhost:3456 in your browser.
+ * Open: http://localhost:3456
  */
 
+import { createServer } from 'http';
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { createAgentServer } from '../../src/server/index.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PORT = parseInt(process.env.PORT, 10) || 3456;
 
 const agent = createAgentServer({
   config: {
@@ -34,7 +41,20 @@ const agent = createAgentServer({
   },
 });
 
-agent.listen(3456, () => {
-  console.log('\nMinimal agent-web example running.');
-  console.log('Use the React component or vanilla client to connect.\n');
+const html = readFileSync(resolve(__dirname, 'index.html'), 'utf-8');
+
+const httpServer = createServer((req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (url.pathname === '/' || url.pathname === '/index.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(html);
+    return;
+  }
+  agent.middleware()(req, res);
+});
+
+agent.attachWebSocket(httpServer);
+
+httpServer.listen(PORT, () => {
+  console.log(`\nQuickstart running at http://localhost:${PORT}\n`);
 });

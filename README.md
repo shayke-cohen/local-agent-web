@@ -178,23 +178,26 @@ Each session can request its own model, tools, and system prompt. The server mer
 
 ### 6. Native Desktop App (macOS / Electron / Tauri)
 
-Best for: native apps that connect to the server via WebSocket.
+Best for: native apps with an embedded server — users just launch the app.
 
 ```mermaid
 flowchart LR
-  subgraph Desktop
-    SW["SwiftUI / Electron / Tauri"]
+  subgraph Desktop["macOS App"]
+    SW["SwiftUI Views"]
+    SP["ServerProcess<br/>(spawns node)"]
     WC["WebSocket Client"]
     SW --> WC
+    SW --> SP
+    SP -->|"child process"| AS
   end
-  subgraph Node
-    AS["agent-web Server"]
+  subgraph AS["agent-web Server"]
+    SM["SessionManager"]
   end
   WC <-->|"WS protocol"| AS
   AS <--> SDK["Agent SDK"]
 ```
 
-The macOS demo app uses SwiftUI with a native `URLSessionWebSocketTask` to connect to the same server. Any language/framework that speaks WebSocket can integrate — the [protocol](#protocol) is simple JSON envelopes.
+The macOS demo app **embeds the agent-web server** as a child process. Users just launch the app — `ServerProcess` finds `node`, starts `server.js`, health-checks, and auto-connects via WebSocket. Server logs are visible in-app. Any language/framework that speaks WebSocket can integrate — the [protocol](#protocol) is simple JSON envelopes.
 
 ---
 
@@ -321,37 +324,49 @@ All messages use a standard JSON envelope:
 
 ## Examples
 
-Six reference implementations — each serves as documentation, test target, and starting point:
+Seven reference implementations — each serves as documentation, test target, and starting point:
 
-| Example | Port | Use Case |
-|---|---|---|
-| [`react-embeddable`](examples/react-embeddable/) | 4010 | Drop-in `<ClaudeChat />` widget |
-| [`react-custom-hooks`](examples/react-custom-hooks/) | 4011 | Custom UI with hooks |
-| [`vanilla-js`](examples/vanilla-js/) | 4012 | Framework-agnostic client |
-| [`express-middleware`](examples/express-middleware/) | 4014 | Express `app.use()` integration |
-| [`multi-session`](examples/multi-session/) | 4015 | Config negotiation + concurrent sessions |
-| [`macos-app`](examples/macos-app/) | 4020 | Native macOS SwiftUI app |
+| Example | Port | Use Case | Run |
+|---|---|---|---|
+| [`minimal-chat`](examples/minimal-chat/) | 3456 | **Quickstart** — simplest possible demo | `node examples/minimal-chat/server.js` |
+| [`react-embeddable`](examples/react-embeddable/) | 4010 | Drop-in `<ClaudeChat />` widget | `node examples/react-embeddable/server.js` |
+| [`react-custom-hooks`](examples/react-custom-hooks/) | 4011 | Custom UI with hooks | `node examples/react-custom-hooks/server.js` |
+| [`vanilla-js`](examples/vanilla-js/) | 4012 | Framework-agnostic client | `node examples/vanilla-js/server.js` |
+| [`express-middleware`](examples/express-middleware/) | 4014 | Express `app.use()` integration | `node examples/express-middleware/server.js` |
+| [`multi-session`](examples/multi-session/) | 4015 | Config negotiation + concurrent sessions | `node examples/multi-session/server.js` |
+| [`macos-app`](examples/macos-app/) | 4020 | Native macOS app (**embedded server**) | `cd examples/macos-app/AgentChat && swift run` |
+
+### Quickstart
 
 ```bash
-node examples/<name>/server.js
+git clone https://github.com/shayke-cohen/local-agent-web.git
+cd local-agent-web && npm install
+node examples/minimal-chat/server.js
+# Open http://localhost:3456
 ```
 
 ---
 
 ## Testing
 
-| Tier | Command | What It Tests |
-|---|---|---|
-| Unit | `npm run test:unit` | Protocol, server logic, client hooks, components, vanilla client |
-| Integration | `npm run test:integration` | Real HTTP server, WebSocket handshake, config negotiation |
-| E2E (SDK) | `npm run test:e2e` | Real Claude Agent SDK via local CLI (no API key needed) |
-| E2E (Browser) | `npm run test:e2e:browser` | Browser tests via Argus MCP against demo apps |
-| macOS | `swift test` (in `examples/macos-app/AgentChat`) | Swift unit tests for models, settings, view model |
+**292 total tests** across Node.js and Swift:
+
+| Tier | Command | Tests | What It Tests |
+|---|---|---|---|
+| Unit | `npm run test:unit` | ~170 | Protocol, server logic, client hooks, components, vanilla client |
+| Integration | `npm run test:integration` | ~50 | Real HTTP server, WebSocket handshake, config negotiation, macOS server |
+| E2E (SDK) | `npm run test:e2e` | 5 | Real Claude Agent SDK via local CLI (no API key needed) |
+| E2E (macOS) | `npm run test:e2e:macos` | 4 | Build macOS app, server health, session creation |
+| E2E (Browser) | `npm run test:e2e:browser` | — | Browser tests via Argus MCP against demo apps |
+| Swift | `swift test` (in `examples/macos-app/AgentChat`) | 49 | Models, settings, view model, server process |
 
 ```bash
-npm test                  # All Node.js tests (234+)
+npm test                  # All Node.js tests (243)
 npm run test:e2e          # Real Claude Code CLI
 npm run test:coverage     # Coverage report
+
+# Swift tests
+cd examples/macos-app/AgentChat && swift test   # 49 tests
 ```
 
 ---
