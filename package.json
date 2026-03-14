@@ -1,6 +1,6 @@
 {
   "name": "@shaykec/agent-web",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Generic framework for exposing Claude Code to web apps — server middleware, React hooks, and embeddable components",
   "type": "module",
   "main": "./src/index.js",
