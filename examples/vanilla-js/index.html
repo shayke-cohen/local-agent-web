@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>agent-web — Vanilla JS Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d1117; color: #c9d1d9; height: 100vh;
+      display: flex; flex-direction: column;
+    }
+    header {
+      padding: 16px 24px; border-bottom: 1px solid #30363d; background: #161b22;
+    }
+    .controls { display: flex; gap: 8px; margin-top: 8px; }
+    #status { padding: 4px 8px; border-radius: 4px; font-size: 12px; background: #21262d; }
+    .connected { color: #3fb950 !important; }
+    .disconnected { color: #f85149 !important; }
+    #messages {
+      flex: 1; overflow-y: auto; padding: 16px;
+    }
+    .msg { margin-bottom: 12px; }
+    .msg.user { text-align: right; }
+    .msg .bubble {
+      display: inline-block; max-width: 70%; padding: 10px 14px;
+      border-radius: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+    }
+    .msg.user .bubble { background: #58a6ff; color: #fff; }
+    .msg.assistant .bubble { background: #21262d; }
+    .msg.system .bubble { background: none; color: #8b949e; font-size: 12px; }
+    .input-bar {
+      display: flex; gap: 8px; padding: 12px 16px;
+      border-top: 1px solid #30363d; background: #161b22;
+    }
+    #message-input {
+      flex: 1; padding: 8px 12px; border-radius: 6px;
+      border: 1px solid #30363d; background: #0d1117;
+      color: #c9d1d9; outline: none; font-size: 14px;
+    }
+    button {
+      padding: 8px 16px; border-radius: 6px; border: none;
+      background: #58a6ff; color: #fff; cursor: pointer; font-weight: 500;
+    }
+    button:disabled { background: #21262d; color: #8b949e; cursor: default; }
+    #connect-btn { background: #238636; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 style="font-size: 18px;">Claude Chat <small style="font-weight:400;color:#8b949e">— Vanilla JS</small></h1>
+    <div class="controls">
+      <button id="connect-btn">Connect</button>
+      <span id="status" class="disconnected">Disconnected</span>
+    </div>
+  </header>
+  <div id="messages"></div>
+  <div class="input-bar">
+    <input type="text" id="message-input" placeholder="Type a message..." disabled />
+    <button id="send-btn" disabled>Send</button>
+  </div>
+
+  <script type="module">
+    const BASE = window.location.origin;
+    const WS_URL = BASE.replace(/^http/, 'ws');
+    let ws = null;
+    let sessionId = null;
+    let streamingEl = null;
+
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const connectBtn = document.getElementById('connect-btn');
+    const statusEl = document.getElementById('status');
+
+    function setConnected(connected) {
+      statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+      statusEl.className = connected ? 'connected' : 'disconnected';
+      inputEl.disabled = !connected;
+      sendBtn.disabled = !connected;
+      connectBtn.textContent = connected ? 'Disconnect' : 'Connect';
+    }
+
+    function addMessage(role, text) {
+      const div = document.createElement('div');
+      div.className = `msg ${role}`;
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = text;
+      div.appendChild(bubble);
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return bubble;
+    }
+
+    function connect() {
+      ws = new WebSocket(`${WS_URL}/ws`);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          v: 1, type: 'sys:connect',
+          payload: { clientType: 'vanilla', protocolVersion: 1 },
+          source: 'client', timestamp: Date.now(),
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'sys:connect') {
+          setConnected(true);
+          addMessage('system', `Connected (client: ${msg.payload.clientId})`);
+          return;
+        }
+        handleMessage(msg);
+      };
+
+      ws.onclose = () => setConnected(false);
+      ws.onerror = () => setConnected(false);
+    }
+
+    function disconnect() {
+      if (ws) ws.close();
+      ws = null;
+      setConnected(false);
+    }
+
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'chat:stream':
+          if (!streamingEl) streamingEl = addMessage('assistant', '');
+          streamingEl.textContent = msg.payload.fullText || msg.payload.delta;
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+          break;
+        case 'chat:assistant':
+          if (streamingEl) { streamingEl.textContent = msg.payload.text; streamingEl = null; }
+          else addMessage('assistant', msg.payload.text);
+          break;
+        case 'chat:tool-use':
+          addMessage('system', `Tool: ${msg.payload.toolName}`);
+          break;
+        case 'chat:error':
+          addMessage('system', `Error: ${msg.payload.message}`);
+          break;
+      }
+    }
+
+    async function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      if (!sessionId) {
+        const resp = await fetch(`${BASE}/chat/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config: {} }),
+        });
+        const data = await resp.json();
+        sessionId = data.sessionId;
+        addMessage('system', `Session: ${sessionId.slice(0, 12)}...`);
+      }
+
+      addMessage('user', text);
+      inputEl.value = '';
+
+      await fetch(`${BASE}/chat/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, text }),
+      });
+    }
+
+    connectBtn.onclick = () => { ws ? disconnect() : connect(); };
+    sendBtn.onclick = sendMessage;
+    inputEl.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
+  </script>
+</body>
+</html>

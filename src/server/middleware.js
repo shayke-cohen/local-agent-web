@@ -83,7 +83,7 @@ class AgentServer {
    * @param {function} [onReady]
    */
   listen(port, onReady) {
-    const listenPort = port || this._options.port || 3456;
+    const listenPort = port !== undefined && port !== null ? port : (this._options.port ?? 3456);
 
     this._server = createHttpServer((req, res) => {
       this._handleRequest(req, res);
@@ -95,12 +95,13 @@ class AgentServer {
     this._transport.startHeartbeat();
 
     this._server.listen(listenPort, () => {
-      console.log(`agent-web server running on http://localhost:${listenPort}`);
+      const actualPort = this._server.address().port;
+      console.log(`agent-web server running on http://localhost:${actualPort}`);
       console.log(`  WebSocket  ${this._basePath}/ws`);
       console.log(`  SSE        ${this._basePath}/sse`);
       console.log(`  REST       ${this._basePath}/chat/*`);
       console.log(`  Health     ${this._basePath}/health`);
-      if (onReady) onReady({ port: listenPort });
+      if (onReady) onReady({ port: actualPort });
     });
 
     return this;

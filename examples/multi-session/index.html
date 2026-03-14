@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>agent-web — Multi-Session + Config Control</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d1117; color: #c9d1d9; height: 100vh; display: flex; flex-direction: column;
+    }
+    header { padding: 12px 24px; border-bottom: 1px solid #30363d; background: #161b22; }
+    .layout { display: flex; flex: 1; overflow: hidden; }
+    .config-panel {
+      width: 300px; border-right: 1px solid #30363d; background: #161b22;
+      padding: 16px; overflow-y: auto;
+    }
+    .config-panel h3 { font-size: 13px; color: #8b949e; margin-bottom: 8px; }
+    .config-panel label { display: block; font-size: 12px; color: #8b949e; margin-top: 10px; }
+    .config-panel select, .config-panel input[type="number"] {
+      width: 100%; padding: 6px 8px; border-radius: 4px; border: 1px solid #30363d;
+      background: #0d1117; color: #c9d1d9; font-size: 13px; margin-top: 4px;
+    }
+    .tool-list { margin-top: 8px; }
+    .tool-item {
+      display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 12px;
+    }
+    .resolved-config {
+      margin-top: 16px; padding: 12px; background: #0d1117; border-radius: 6px;
+      border: 1px solid #30363d; font-size: 11px; font-family: monospace;
+      white-space: pre-wrap; max-height: 200px; overflow-y: auto; color: #8b949e;
+    }
+    .warnings { color: #f59e0b; font-size: 11px; margin-top: 8px; }
+    .sessions-area { flex: 1; display: flex; flex-direction: column; }
+    .tab-bar { display: flex; border-bottom: 1px solid #30363d; background: #161b22; }
+    .tab {
+      padding: 8px 16px; font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent;
+    }
+    .tab.active { border-bottom-color: #58a6ff; color: #58a6ff; }
+    .tab .close { margin-left: 8px; color: #8b949e; }
+    .add-tab { padding: 8px 12px; cursor: pointer; color: #8b949e; font-size: 14px; }
+    .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .messages { flex: 1; overflow-y: auto; padding: 16px; }
+    .msg { margin-bottom: 10px; }
+    .msg.user { text-align: right; }
+    .msg .bubble {
+      display: inline-block; max-width: 70%; padding: 8px 12px;
+      border-radius: 10px; line-height: 1.4; white-space: pre-wrap; font-size: 13px;
+    }
+    .msg.user .bubble { background: #58a6ff; color: #fff; }
+    .msg.assistant .bubble { background: #21262d; }
+    .input-bar {
+      display: flex; gap: 8px; padding: 10px 16px;
+      border-top: 1px solid #30363d; background: #161b22;
+    }
+    .input-bar input {
+      flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #30363d;
+      background: #0d1117; color: #c9d1d9; outline: none; font-size: 13px;
+    }
+    button {
+      padding: 6px 14px; border-radius: 6px; border: none;
+      background: #58a6ff; color: #fff; cursor: pointer; font-weight: 500; font-size: 13px;
+    }
+    button:disabled { background: #21262d; color: #8b949e; cursor: default; }
+    .create-btn { background: #238636; margin-top: 12px; width: 100%; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 style="font-size: 16px;">Multi-Session + Config Control</h1>
+  </header>
+  <div class="layout">
+    <div class="config-panel">
+      <h3>Request Config</h3>
+
+      <label>Model
+        <select id="model-select">
+          <option value="claude-haiku-3-5">claude-haiku-3-5</option>
+          <option value="claude-sonnet-4-6" selected>claude-sonnet-4-6</option>
+          <option value="claude-opus-4-6">claude-opus-4-6</option>
+        </select>
+      </label>
+
+      <label>Max Turns
+        <input type="number" id="max-turns" value="10" min="1" max="100" />
+      </label>
+
+      <label>Tools</label>
+      <div class="tool-list" id="tool-list"></div>
+
+      <label>Agents</label>
+      <div class="tool-list" id="agent-list"></div>
+
+      <button class="create-btn" id="create-btn">Create Session with Config</button>
+
+      <h3 style="margin-top:20px;">Resolved Config</h3>
+      <div class="resolved-config" id="resolved-config">No session yet</div>
+      <div class="warnings" id="warnings"></div>
+    </div>
+
+    <div class="sessions-area">
+      <div class="tab-bar" id="tab-bar">
+        <div class="add-tab" id="add-tab">+</div>
+      </div>
+      <div class="chat-area">
+        <div class="messages" id="messages">
+          <div style="text-align:center;color:#8b949e;margin-top:60px;">
+            Create a session to start chatting
+          </div>
+        </div>
+        <div class="input-bar">
+          <input type="text" id="msg-input" placeholder="Type a message..." disabled />
+          <button id="send-btn" disabled>Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const BASE = window.location.origin;
+    const TOOLS = ['Bash(*)', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
+    const AGENTS = ['reviewer', 'writer', 'planner'];
+    let sessions = {};
+    let activeSession = null;
+    let ws = null;
+
+    const toolListEl = document.getElementById('tool-list');
+    const agentListEl = document.getElementById('agent-list');
+
+    TOOLS.forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'tool-item';
+      div.innerHTML = `<input type="checkbox" checked data-tool="${t}" /> <span>${t}</span>`;
+      toolListEl.appendChild(div);
+    });
+
+    AGENTS.forEach(a => {
+      const div = document.createElement('div');
+      div.className = 'tool-item';
+      div.innerHTML = `<input type="checkbox" data-agent="${a}" /> <span>${a}</span>`;
+      agentListEl.appendChild(div);
+    });
+
+    function getRequestedConfig() {
+      const tools = [...document.querySelectorAll('[data-tool]:checked')].map(el => el.dataset.tool);
+      const agents = [...document.querySelectorAll('[data-agent]:checked')].map(el => el.dataset.agent);
+      return {
+        model: document.getElementById('model-select').value,
+        maxTurns: parseInt(document.getElementById('max-turns').value, 10),
+        tools,
+        agents: agents.length > 0 ? agents : undefined,
+      };
+    }
+
+    async function createSession() {
+      const config = getRequestedConfig();
+      const resp = await fetch(`${BASE}/chat/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config }),
+      });
+      const data = await resp.json();
+
+      document.getElementById('resolved-config').textContent = JSON.stringify(data.config, null, 2);
+      document.getElementById('warnings').textContent =
+        (data.warnings || []).map(w => `⚠ ${w}`).join('\n');
+
+      const sid = data.sessionId;
+      sessions[sid] = { id: sid, messages: [], config: data.config };
+
+      addTab(sid);
+      switchToSession(sid);
+    }
+
+    function addTab(sid) {
+      const tab = document.createElement('div');
+      tab.className = 'tab';
+      tab.dataset.sid = sid;
+      tab.innerHTML = `${sid.slice(0, 8)} <span class="close">×</span>`;
+      tab.onclick = (e) => {
+        if (e.target.classList.contains('close')) {
+          delete sessions[sid];
+          tab.remove();
+          if (activeSession === sid) {
+            const remaining = Object.keys(sessions);
+            if (remaining.length > 0) switchToSession(remaining[0]);
+            else clearChat();
+          }
+        } else {
+          switchToSession(sid);
+        }
+      };
+      document.getElementById('tab-bar').insertBefore(tab, document.getElementById('add-tab'));
+    }
+
+    function switchToSession(sid) {
+      activeSession = sid;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.sid === sid));
+      renderMessages();
+      document.getElementById('msg-input').disabled = false;
+      document.getElementById('send-btn').disabled = false;
+      if (sessions[sid]) {
+        document.getElementById('resolved-config').textContent = JSON.stringify(sessions[sid].config, null, 2);
+      }
+    }
+
+    function clearChat() {
+      activeSession = null;
+      document.getElementById('messages').innerHTML =
+        '<div style="text-align:center;color:#8b949e;margin-top:60px;">Create a session to start chatting</div>';
+      document.getElementById('msg-input').disabled = true;
+      document.getElementById('send-btn').disabled = true;
+    }
+
+    function renderMessages() {
+      const el = document.getElementById('messages');
+      el.innerHTML = '';
+      if (!sessions[activeSession]) return;
+      sessions[activeSession].messages.forEach(m => {
+        const div = document.createElement('div');
+        div.className = `msg ${m.role}`;
+        div.innerHTML = `<div class="bubble">${escapeHtml(m.text)}</div>`;
+        el.appendChild(div);
+      });
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function escapeHtml(t) {
+      return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    async function sendMessage() {
+      const text = document.getElementById('msg-input').value.trim();
+      if (!text || !activeSession) return;
+      document.getElementById('msg-input').value = '';
+
+      sessions[activeSession].messages.push({ role: 'user', text });
+      renderMessages();
+
+      await fetch(`${BASE}/chat/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: activeSession, text }),
+      });
+    }
+
+    function connectWS() {
+      ws = new WebSocket(BASE.replace(/^http/, 'ws') + '/ws');
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          v: 1, type: 'sys:connect',
+          payload: { clientType: 'browser', protocolVersion: 1 },
+          source: 'client', timestamp: Date.now(),
+        }));
+      };
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        const sid = msg.sessionId;
+        if (!sid || !sessions[sid]) return;
+
+        if (msg.type === 'chat:stream') {
+          const msgs = sessions[sid].messages;
+          const last = msgs[msgs.length - 1];
+          if (last && last.role === 'assistant' && last._streaming) {
+            last.text = msg.payload.fullText || msg.payload.delta;
+          } else {
+            msgs.push({ role: 'assistant', text: msg.payload.fullText || '', _streaming: true });
+          }
+          if (sid === activeSession) renderMessages();
+        } else if (msg.type === 'chat:assistant') {
+          const msgs = sessions[sid].messages;
+          const last = msgs[msgs.length - 1];
+          if (last && last._streaming) {
+            last.text = msg.payload.text;
+            last._streaming = false;
+          } else {
+            msgs.push({ role: 'assistant', text: msg.payload.text });
+          }
+          if (sid === activeSession) renderMessages();
+        }
+      };
+      ws.onclose = () => setTimeout(connectWS, 3000);
+    }
+
+    document.getElementById('create-btn').onclick = createSession;
+    document.getElementById('add-tab').onclick = createSession;
+    document.getElementById('send-btn').onclick = sendMessage;
+    document.getElementById('msg-input').onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
+
+    connectWS();
+  </script>
+</body>
+</html>

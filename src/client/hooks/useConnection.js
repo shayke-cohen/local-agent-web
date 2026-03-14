@@ -41,8 +41,8 @@ export function useConnection(options = {}) {
       wsRef.current.onclose = null;
       wsRef.current.onerror = null;
       wsRef.current.onmessage = null;
-      if (wsRef.current.readyState === WebSocket.OPEN ||
-          wsRef.current.readyState === WebSocket.CONNECTING) {
+      if (wsRef.current.readyState === 1 /* OPEN */ ||
+          wsRef.current.readyState === 0 /* CONNECTING */) {
         wsRef.current.close();
       }
       wsRef.current = null;
@@ -80,7 +80,7 @@ export function useConnection(options = {}) {
       timestamp: Date.now(),
     };
 
-    if (via === 'ws' && wsRef.current?.readyState === WebSocket.OPEN) {
+    if (via === 'ws' && wsRef.current?.readyState === 1 /* OPEN */) {
       wsRef.current.send(JSON.stringify(msg));
     }
   }, []);
@@ -188,7 +188,7 @@ export function useConnection(options = {}) {
     };
     if (sessionId) msg.sessionId = sessionId;
 
-    if (transport === 'ws' && wsRef.current?.readyState === WebSocket.OPEN) {
+    if (transport === 'ws' && wsRef.current?.readyState === 1 /* OPEN */) {
       wsRef.current.send(JSON.stringify(msg));
     } else {
       fetch(`${httpUrl}/chat/message`, {

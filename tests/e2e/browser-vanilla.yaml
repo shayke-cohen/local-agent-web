@@ -1,0 +1,15 @@
+url: http://localhost:4012
+---
+- navigate: "http://localhost:4012"
+- assertVisible:
+    text: "Claude Chat"
+- assertVisible:
+    selector: "#connect-btn"
+- assertVisible:
+    selector: "#message-input"
+- tapOn:
+    selector: "#connect-btn"
+- waitFor:
+    text: "Connected"
+    timeout: 5000
+- takeScreenshot: "vanilla-connected"

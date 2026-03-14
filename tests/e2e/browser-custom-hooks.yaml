@@ -1,0 +1,15 @@
+url: http://localhost:4011
+---
+- navigate: "http://localhost:4011"
+- assertVisible:
+    text: "Claude Chat"
+- assertVisible:
+    selector: "#message-input"
+- assertVisible:
+    text: "Send"
+- assertVisible:
+    selector: ".session-list"
+- inputText:
+    selector: "#message-input"
+    text: "Test message"
+- takeScreenshot: "custom-hooks-with-input"

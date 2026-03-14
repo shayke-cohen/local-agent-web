@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect, useContext } from 'react';
-import { ClaudeContext } from '../ClaudeProvider.js';
+import { ClaudeContext } from '../ClaudeProvider.jsx';
 import {
   MSG_CHAT_STREAM,
   MSG_CHAT_ASSISTANT,

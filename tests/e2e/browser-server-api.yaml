@@ -1,0 +1,24 @@
+serverUrl: http://localhost:4013
+---
+- request:
+    method: GET
+    url: /health
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.status"
+    expected: "ok"
+- request:
+    method: GET
+    url: /chat/config
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.config.model"
+    expected: "claude-sonnet-4-6"
+- request:
+    method: OPTIONS
+    url: /chat/start
+- assertStatus: 204
+- request:
+    method: GET
+    url: /nonexistent
+- assertStatus: 404

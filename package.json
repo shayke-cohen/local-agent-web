@@ -16,9 +16,19 @@
   ],
   "scripts": {
     "test": "vitest run",
+    "test:unit": "vitest run tests/protocol tests/server tests/client tests/vanilla",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "test:e2e:browser": "node scripts/run-browser-tests.js",
+    "test:all": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "example:minimal": "node examples/minimal-chat/server.js",
+    "example:embeddable": "node examples/react-embeddable/server.js",
+    "example:hooks": "node examples/react-custom-hooks/server.js",
+    "example:vanilla": "node examples/vanilla-js/server.js",
+    "example:express": "node examples/express-middleware/server.js",
+    "example:multi": "node examples/multi-session/server.js",
     "lint": "echo 'No linter configured yet'"
   },
   "keywords": [

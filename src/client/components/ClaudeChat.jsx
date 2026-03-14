@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ClaudeProvider } from '../ClaudeProvider.js';
+import { ClaudeProvider } from '../ClaudeProvider.jsx';
 import { useChat } from '../hooks/useChat.js';
 import { useSessions } from '../hooks/useSessions.js';
 import { ClaudeMessage } from './ClaudeMessage.jsx';

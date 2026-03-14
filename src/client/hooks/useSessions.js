@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useContext, useEffect } from 'react';
-import { ClaudeContext } from '../ClaudeProvider.js';
+import { ClaudeContext } from '../ClaudeProvider.jsx';
 
 /**
  * @returns {{ sessions, loading, error, refresh, create, resume }}

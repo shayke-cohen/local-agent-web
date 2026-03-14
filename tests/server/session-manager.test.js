@@ -42,7 +42,7 @@ describe('server/SessionManager', () => {
   });
 
   describe('createSession', () => {
-    it('creates a session and returns sessionId', async () => {
+    it('creates a session and returns a UUID sessionId', async () => {
       const onMessage = vi.fn();
       const sessionId = await manager.createSession(
         { model: 'claude-sonnet-4-6' },
@@ -50,11 +50,11 @@ describe('server/SessionManager', () => {
         onMessage
       );
 
-      expect(sessionId).toBe('test-session-123');
+      expect(sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
       expect(onMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'session:created',
-          payload: expect.objectContaining({ sessionId: 'test-session-123' }),
+          payload: expect.objectContaining({ sessionId }),
         })
       );
     });
@@ -62,10 +62,10 @@ describe('server/SessionManager', () => {
 
   describe('getSession', () => {
     it('returns session info for active session', async () => {
-      await manager.createSession({}, { model: 'claude-sonnet-4-6' }, vi.fn());
-      const info = manager.getSession('test-session-123');
+      const sessionId = await manager.createSession({}, { model: 'claude-sonnet-4-6' }, vi.fn());
+      const info = manager.getSession(sessionId);
       expect(info).not.toBeNull();
-      expect(info.sessionId).toBe('test-session-123');
+      expect(info.sessionId).toBe(sessionId);
       expect(info.streaming).toBe(false);
     });
 
@@ -76,19 +76,19 @@ describe('server/SessionManager', () => {
 
   describe('getActiveSessionIds', () => {
     it('returns all active session IDs', async () => {
-      await manager.createSession({}, { model: 'test' }, vi.fn());
+      const sessionId = await manager.createSession({}, { model: 'test' }, vi.fn());
       const ids = manager.getActiveSessionIds();
-      expect(ids).toContain('test-session-123');
+      expect(ids).toContain(sessionId);
     });
   });
 
   describe('closeSession', () => {
     it('removes session from active sessions', async () => {
       const onMessage = vi.fn();
-      await manager.createSession({}, { model: 'test' }, onMessage);
-      await manager.closeSession('test-session-123');
+      const sessionId = await manager.createSession({}, { model: 'test' }, onMessage);
+      await manager.closeSession(sessionId);
 
-      expect(manager.getSession('test-session-123')).toBeNull();
+      expect(manager.getSession(sessionId)).toBeNull();
       expect(onMessage).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'session:closed' })
       );
@@ -138,12 +138,11 @@ describe('server/SessionManager', () => {
     it('updates the onMessage callback for a session', async () => {
       const cb1 = vi.fn();
       const cb2 = vi.fn();
-      await manager.createSession({}, { model: 'test' }, cb1);
+      const sessionId = await manager.createSession({}, { model: 'test' }, cb1);
 
-      manager.setMessageCallback('test-session-123', cb2);
+      manager.setMessageCallback(sessionId, cb2);
 
-      // The next emit should use cb2
-      await manager.closeSession('test-session-123');
+      await manager.closeSession(sessionId);
       expect(cb2).toHaveBeenCalled();
     });
   });

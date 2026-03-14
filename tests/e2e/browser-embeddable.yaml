@@ -1,0 +1,19 @@
+url: http://localhost:4010
+---
+- navigate: "http://localhost:4010"
+- assertVisible:
+    selector: ".awc-chat"
+- assertVisible:
+    text: "Claude"
+- assertVisible:
+    selector: "input[placeholder='Ask Claude...']"
+- assertVisible:
+    text: "Send"
+- assertVisible:
+    text: "Sessions"
+- assertVisible:
+    text: "Start a conversation with Claude"
+- inputText:
+    selector: "input[placeholder='Ask Claude...']"
+    text: "Hello"
+- takeScreenshot: "embeddable-with-input"

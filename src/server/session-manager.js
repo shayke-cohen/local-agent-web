@@ -2,10 +2,11 @@
  * SessionManager — manages multiple Claude Agent SDK sessions.
  *
  * Each session wraps the Agent SDK V2 interface (createSession / resumeSession).
- * Sessions are identified by their SDK-assigned sessionId.
- * Streaming responses are emitted as protocol envelopes via callbacks.
+ * Sessions use framework-generated UUIDs as keys; the SDK's internal session ID
+ * is resolved lazily during the first stream (system/init event).
  */
 
+import { randomUUID } from 'crypto';
 import { createEnvelope } from '../protocol/envelope.js';
 import {
   MSG_CHAT_STREAM,
@@ -22,7 +23,8 @@ import {
 
 /**
  * @typedef {object} SessionEntry
- * @property {string} sessionId
+ * @property {string} sessionId - Framework-assigned UUID
+ * @property {string|null} sdkSessionId - SDK-assigned ID (resolved lazily)
  * @property {object} sdkSession - Agent SDK session handle
  * @property {boolean} streaming - Whether the session is currently streaming
  * @property {import('../protocol/config.js').AgentConfig} config - Resolved config
@@ -65,10 +67,11 @@ export class SessionManager {
     const sdk = await this._getSDK();
 
     const sdkSession = sdk.unstable_v2_createSession(sdkOptions);
-    const sessionId = sdkSession.sessionId;
+    const sessionId = randomUUID();
 
     this._sessions.set(sessionId, {
       sessionId,
+      sdkSessionId: null,
       sdkSession,
       streaming: false,
       config: resolvedConfig,
@@ -99,6 +102,7 @@ export class SessionManager {
 
     this._sessions.set(sessionId, {
       sessionId,
+      sdkSessionId: sessionId,
       sdkSession,
       streaming: false,
       config: resolvedConfig,
@@ -139,6 +143,10 @@ export class SessionManager {
 
       for await (const msg of entry.sdkSession.stream()) {
         if (!entry.streaming) break;
+
+        if (msg.type === 'system' && msg.subtype === 'init' && msg.session_id) {
+          entry.sdkSessionId = msg.session_id;
+        }
 
         if (msg.type === 'assistant') {
           const textBlocks = (msg.message?.content || []).filter(b => b.type === 'text');
