@@ -1,0 +1,62 @@
+{
+  "name": "@shaykec/agent-web",
+  "version": "0.1.0",
+  "description": "Generic framework for exposing Claude Code to web apps — server middleware, React hooks, and embeddable components",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./protocol": "./src/protocol/index.js",
+    "./server": "./src/server/index.js",
+    "./react": "./src/client/index.js",
+    "./components": "./src/client/components/index.js",
+    "./client": "./src/vanilla/index.js"
+  },
+  "files": [
+    "src/"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest run --coverage",
+    "example:minimal": "node examples/minimal-chat/server.js",
+    "lint": "echo 'No linter configured yet'"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "agent-sdk",
+    "ai",
+    "chat",
+    "websocket",
+    "react",
+    "hooks",
+    "embeddable"
+  ],
+  "author": "shaykec",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.16.0"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/claude-agent-sdk": ">=0.2.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "@anthropic-ai/claude-agent-sdk": { "optional": true }
+  },
+  "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.63",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vitest": "^3.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "jsdom": "^25.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
