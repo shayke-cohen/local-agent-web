@@ -60,6 +60,10 @@
     "url": "https://github.com/shayke-cohen/local-agent-web/issues"
   },
   "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "dependencies": {
     "ws": "^8.16.0"
   },
