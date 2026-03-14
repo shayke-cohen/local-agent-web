@@ -129,9 +129,9 @@ export class ConfigResolver {
   }
 
   /**
-   * Convert resolved config to Agent SDK session options.
+   * Convert resolved config to Agent SDK V1 query() options.
    * @param {import('../protocol/config.js').AgentConfig} config
-   * @returns {object} Options for unstable_v2_createSession()
+   * @returns {object} Options for query()
    */
   toSDKOptions(config) {
     const opts = {
@@ -139,8 +139,8 @@ export class ConfigResolver {
       allowedTools: config.tools,
       disallowedTools: config.disallowedTools?.length > 0 ? config.disallowedTools : undefined,
       permissionMode: config.permissionMode,
+      allowDangerouslySkipPermissions: config.permissionMode === 'bypassPermissions' ? true : undefined,
       settingSources: config.settingSources,
-      includePartialMessages: true,
     };
 
     if (config.cwd) opts.cwd = config.cwd;

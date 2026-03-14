@@ -1,9 +1,9 @@
 /**
  * SessionManager — manages multiple Claude Agent SDK sessions.
  *
- * Each session wraps the Agent SDK V2 interface (createSession / resumeSession).
- * Sessions use framework-generated UUIDs as keys; the SDK's internal session ID
- * is resolved lazily during the first stream (system/init event).
+ * Uses the V1 query() API with the `resume` option for multi-turn support
+ * and proper plugin loading. Sessions use framework-generated UUIDs as keys;
+ * the SDK's internal session ID is captured from system/init events.
  */
 
 import { randomUUID } from 'crypto';
@@ -25,7 +25,8 @@ import {
  * @typedef {object} SessionEntry
  * @property {string} sessionId - Framework-assigned UUID
  * @property {string|null} sdkSessionId - SDK-assigned ID (resolved lazily)
- * @property {object} sdkSession - Agent SDK session handle
+ * @property {object} sdkOptions - Options passed to sdk.query() on each message
+ * @property {object|null} activeQuery - Currently running query (null when idle)
  * @property {boolean} streaming - Whether the session is currently streaming
  * @property {import('../protocol/config.js').AgentConfig} config - Resolved config
  * @property {function} onMessage - Callback for protocol envelopes
@@ -58,21 +59,24 @@ export class SessionManager {
 
   /**
    * Create a new session.
-   * @param {object} sdkOptions - Options for unstable_v2_createSession
+   * With the V1 API, we don't create the SDK session upfront — we store
+   * the options and create a query() on each sendMessage().
+   * @param {object} sdkOptions - Options for query()
    * @param {import('../protocol/config.js').AgentConfig} resolvedConfig
    * @param {function} onMessage - Callback receiving protocol envelopes
    * @returns {Promise<string>} sessionId
    */
   async createSession(sdkOptions, resolvedConfig, onMessage) {
-    const sdk = await this._getSDK();
+    // Verify SDK is available
+    await this._getSDK();
 
-    const sdkSession = sdk.unstable_v2_createSession(sdkOptions);
     const sessionId = randomUUID();
 
     this._sessions.set(sessionId, {
       sessionId,
       sdkSessionId: null,
-      sdkSession,
+      sdkOptions,
+      activeQuery: null,
       streaming: false,
       config: resolvedConfig,
       onMessage: onMessage || (() => {}),
@@ -96,14 +100,14 @@ export class SessionManager {
    * @returns {Promise<string>} sessionId
    */
   async resumeSession(sessionId, sdkOptions, resolvedConfig, onMessage) {
-    const sdk = await this._getSDK();
-
-    const sdkSession = sdk.unstable_v2_resumeSession(sessionId, sdkOptions);
+    // Verify SDK is available
+    await this._getSDK();
 
     this._sessions.set(sessionId, {
       sessionId,
       sdkSessionId: sessionId,
-      sdkSession,
+      sdkOptions,
+      activeQuery: null,
       streaming: false,
       config: resolvedConfig,
       onMessage: onMessage || (() => {}),
@@ -120,6 +124,7 @@ export class SessionManager {
 
   /**
    * Send a user message and stream the response.
+   * Creates a new query() for each message, using `resume` for continuity.
    * @param {string} sessionId
    * @param {string} text
    */
@@ -137,14 +142,24 @@ export class SessionManager {
     this._emit(sessionId, MSG_CHAT_STATUS, { status: ChatStatus.THINKING });
 
     try {
-      await entry.sdkSession.send(text);
+      const sdk = await this._getSDK();
+
+      // Build options for this query, adding resume if we have a prior session
+      const opts = { ...entry.sdkOptions };
+      if (entry.sdkSessionId) {
+        opts.resume = entry.sdkSessionId;
+      }
+
+      const q = sdk.query({ prompt: text, options: opts });
+      entry.activeQuery = q;
 
       let currentText = '';
 
-      for await (const msg of entry.sdkSession.stream()) {
+      for await (const msg of q) {
         if (!entry.streaming) break;
 
-        if (msg.type === 'system' && msg.subtype === 'init' && msg.session_id) {
+        // Capture the SDK session ID from system init message
+        if (msg.type === 'system' && msg.session_id && !entry.sdkSessionId) {
           entry.sdkSessionId = msg.session_id;
         }
 
@@ -187,6 +202,23 @@ export class SessionManager {
               text: currentText,
               sessionId,
             });
+          } else {
+            // Fallback: check msg.result for V1 API text
+            const resultText = (msg.message?.content || [])
+              .filter(b => b.type === 'text')
+              .map(b => b.text)
+              .join('\n');
+            const finalResultText = resultText || (typeof msg.result === 'string' ? msg.result : '');
+            if (finalResultText) {
+              this._emit(sessionId, MSG_CHAT_ASSISTANT, {
+                text: finalResultText,
+                sessionId,
+              });
+            }
+          }
+          // Capture session ID from result if not yet captured
+          if (!entry.sdkSessionId && msg.session_id) {
+            entry.sdkSessionId = msg.session_id;
           }
           break;
         }
@@ -197,6 +229,7 @@ export class SessionManager {
         code: err.code,
       });
     } finally {
+      entry.activeQuery = null;
       entry.streaming = false;
       this._emit(sessionId, MSG_CHAT_STATUS, { status: ChatStatus.IDLE });
     }
@@ -213,7 +246,9 @@ export class SessionManager {
     if (entry.streaming) {
       entry.streaming = false;
       try {
-        entry.sdkSession.close();
+        if (entry.activeQuery) {
+          entry.activeQuery.close();
+        }
       } catch { /* best effort */ }
       this._emit(sessionId, MSG_CHAT_STATUS, { status: ChatStatus.STOPPED });
     }
@@ -229,7 +264,9 @@ export class SessionManager {
 
     entry.streaming = false;
     try {
-      entry.sdkSession.close();
+      if (entry.activeQuery) {
+        entry.activeQuery.close();
+      }
     } catch { /* already closed */ }
 
     // Emit before removing so the callback is still available
