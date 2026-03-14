@@ -2,6 +2,14 @@
 
 A framework for adding Claude Code capabilities to any application — web, desktop, or server. Provides a Node.js server that wraps the [Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-sdk), a layered configuration model, and multiple client integration options.
 
+### Web App — Multi-Session Chat
+
+![Web multi-session demo](docs/screenshots/web-multi-session.png)
+
+### macOS App — Native SwiftUI with Embedded Server
+
+![macOS multi-session demo](docs/screenshots/macos-multi-session.png)
+
 ## How It Works
 
 ```mermaid
