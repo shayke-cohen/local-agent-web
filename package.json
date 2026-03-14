@@ -1,6 +1,6 @@
 {
   "name": "@shaykec/agent-web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Generic framework for exposing Claude Code to web apps — server middleware, React hooks, and embeddable components",
   "type": "module",
   "main": "./src/index.js",
@@ -73,9 +73,15 @@
     "react-dom": ">=18.0.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "react-dom": { "optional": true },
-    "@anthropic-ai/claude-agent-sdk": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.63",
