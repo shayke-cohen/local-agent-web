@@ -5,21 +5,41 @@ struct ChatView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var server: ServerProcess
     @StateObject private var vm = ChatViewModel()
+    @StateObject private var history = SessionHistoryManager()
     @State private var inputText = ""
     @State private var showSettings = false
     @State private var showLogs = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            toolbar
-            Divider()
-            if case .running = server.status {
-                messageList
-            } else {
-                serverStatusView
+        NavigationSplitView {
+            sessionSidebar
+        } detail: {
+            VStack(spacing: 0) {
+                toolbar
+                Divider()
+                if case .running = server.status {
+                    messageList
+                } else {
+                    serverStatusView
+                }
+                Divider()
+                inputBar
             }
-            Divider()
-            inputBar
+        }
+        .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
+        .onAppear {
+            vm.onSessionUpdated = { [weak history] sid, messages in
+                let stored = messages.map { m in
+                    StoredMessage(role: m.role.rawValue, text: m.text, timestamp: m.timestamp, toolName: m.toolName)
+                }
+                let title = messages.first(where: { $0.role == .user })?.text ?? "New conversation"
+                let trimmedTitle = title.count > 40 ? String(title.prefix(40)) + "..." : title
+                if history?.session(for: sid) != nil {
+                    history?.updateSession(id: sid, messages: stored, title: trimmedTitle)
+                } else {
+                    history?.addSession(SessionRecord(id: sid, title: trimmedTitle, messages: stored))
+                }
+            }
         }
         .onChange(of: server.status) { _, newStatus in
             if case .running(let port) = newStatus {
@@ -42,6 +62,48 @@ struct ChatView: View {
         .sheet(isPresented: $showLogs) {
             ServerLogView(server: server)
         }
+    }
+
+    // MARK: - Session sidebar
+
+    private var sessionSidebar: some View {
+        VStack(spacing: 0) {
+            Button(action: newSession) {
+                Label("New Chat", systemImage: "plus.bubble")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .padding(12)
+
+            if history.sessions.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No sessions yet")
+                        .foregroundStyle(.tertiary)
+                        .font(.caption)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(selection: Binding(
+                    get: { vm.sessionId },
+                    set: { id in if let id { selectSession(id) } }
+                )) {
+                    ForEach(history.sortedSessions) { record in
+                        SessionRow(record: record, isActive: record.id == vm.sessionId)
+                            .tag(record.id)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    deleteSession(record.id)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                    }
+                }
+                .listStyle(.sidebar)
+            }
+        }
+        .navigationTitle("Sessions")
     }
 
     // MARK: - Toolbar
@@ -134,7 +196,7 @@ struct ChatView: View {
         }
     }
 
-    // MARK: - Server status view (shown while server isn't running)
+    // MARK: - Server status view
 
     private var serverStatusView: some View {
         VStack(spacing: 16) {
@@ -258,11 +320,59 @@ struct ChatView: View {
         isServerRunning && !inputText.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    // MARK: - Actions
+
     private func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         vm.send(text)
         inputText = ""
+    }
+
+    private func newSession() {
+        vm.startNewSession()
+    }
+
+    private func selectSession(_ id: String) {
+        guard let record = history.session(for: id) else { return }
+        let msgs = record.messages.map { m in
+            ChatMessage(role: ChatMessage.Role(rawValue: m.role) ?? .system, text: m.text, toolName: m.toolName)
+        }
+        vm.switchToSession(id: id, messages: msgs)
+    }
+
+    private func deleteSession(_ id: String) {
+        history.removeSession(id: id)
+        if vm.sessionId == id {
+            vm.startNewSession()
+        }
+    }
+}
+
+// MARK: - Session Row
+
+struct SessionRow: View {
+    let record: SessionRecord
+    let isActive: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(record.title)
+                .font(.system(size: 13, weight: isActive ? .semibold : .regular))
+                .lineLimit(1)
+            HStack(spacing: 6) {
+                Text("\(record.messageCount) msgs")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                Text("•")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
+                Text(record.updatedAt, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
 

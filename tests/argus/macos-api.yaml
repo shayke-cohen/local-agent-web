@@ -1,0 +1,47 @@
+# Test: macOS App Embedded Server API (Multi-Session)
+# Suite: regression
+# Platform: server
+# Tags: macos, api, embedded-server, multi-session
+
+serverUrl: http://localhost:4020
+---
+- request:
+    method: GET
+    url: /health
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.status"
+    expected: "ok"
+
+- request:
+    method: POST
+    url: /chat/start
+    headers:
+      Content-Type: application/json
+    body:
+      config: {}
+    capture:
+      macSession1: "$.sessionId"
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.ok"
+    expected: true
+
+- request:
+    method: POST
+    url: /chat/start
+    headers:
+      Content-Type: application/json
+    body:
+      config: {}
+    capture:
+      macSession2: "$.sessionId"
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.ok"
+    expected: true
+
+- request:
+    method: GET
+    url: /chat/sessions
+- assertStatus: 200

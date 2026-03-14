@@ -16,6 +16,8 @@ public final class ChatViewModel: ObservableObject {
     private var serverURL = "http://localhost:4020"
     private var currentStreamingId: String?
 
+    public var onSessionUpdated: ((String, [ChatMessage]) -> Void)?
+
     public init() {
         ws.delegate = self
     }
@@ -44,6 +46,7 @@ public final class ChatViewModel: ObservableObject {
                 await startSession()
             }
             guard let sid = sessionId else { return }
+            notifySessionUpdated()
             await sendMessage(sid: sid, text: text)
         }
     }
@@ -53,8 +56,18 @@ public final class ChatViewModel: ObservableObject {
         sessionId = nil
     }
 
-    /// Processes a received envelope and updates state accordingly.
-    /// Extracted to be testable independently.
+    public func switchToSession(id: String, messages: [ChatMessage]) {
+        self.sessionId = id
+        self.messages = messages
+        currentStreamingId = nil
+    }
+
+    public func startNewSession() {
+        sessionId = nil
+        messages.removeAll()
+        currentStreamingId = nil
+    }
+
     public func handleEnvelope(_ env: Envelope) {
         switch env.type {
         case "chat:stream":
@@ -76,6 +89,7 @@ public final class ChatViewModel: ObservableObject {
                 messages.append(ChatMessage(role: .assistant, text: text))
             }
             currentStreamingId = nil
+            notifySessionUpdated()
 
         case "chat:tool-use":
             let toolName = env.payload?["toolName"]?.stringValue ?? "tool"
@@ -150,6 +164,11 @@ public final class ChatViewModel: ObservableObject {
 
     private func appendSystem(_ text: String) {
         messages.append(ChatMessage(role: .system, text: text))
+    }
+
+    private func notifySessionUpdated() {
+        guard let sid = sessionId else { return }
+        onSessionUpdated?(sid, messages)
     }
 }
 

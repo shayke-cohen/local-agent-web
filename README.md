@@ -207,28 +207,9 @@ The macOS demo app **embeds the agent-web server** as a child process. Users jus
 import { createAgentServer } from '@shaykec/agent-web/server';
 
 const agent = createAgentServer({
-  config: {               // Default session config
-    model: 'claude-sonnet-4-6',
-    tools: ['Bash(*)', 'Read', 'Write', 'Edit', 'Glob', 'Grep'],
-    systemPrompt: 'You are a helpful assistant.',
-    plugins: [{ type: 'local', path: './my-plugin' }],
-    agents: {
-      reviewer: { description: 'Code reviewer', prompt: '...', tools: ['Read', 'Grep'] },
-    },
-  },
-  constraints: {          // Hard limits clients cannot exceed
-    maxModel: 'claude-sonnet-4-6',
-    disallowedTools: [],
-    maxTurns: 100,
-  },
-  hooks: {                // Server-side event hooks
-    onSessionStart: ({ sessionId, config }) => {},
-    onMessage: (envelope) => {},
-    onToolUse: (payload, sessionId) => {},
-    onError: (err) => {},
-    onClientConnect: (info) => {},
-    onClientDisconnect: (info) => {},
-  },
+  config: { ... },        // Default session config (see below)
+  constraints: { ... },   // Hard limits clients cannot exceed
+  hooks: { ... },         // Server-side event hooks
 });
 
 agent.listen(3456);
@@ -250,7 +231,7 @@ agent.listen(3456);
 
 ---
 
-## Configuration Model
+## Configuration Reference
 
 Config flows through a merge pipeline with clear precedence:
 
@@ -275,6 +256,269 @@ flowchart TD
 | maxTurns | cap | request | min() |
 | agents | define | select subset | server validates |
 | plugins, cwd, permissionMode, mcpServers | set | — | server-only (never sent to client) |
+
+### Models
+
+Three model tiers are supported, ordered cheapest to most capable:
+
+```javascript
+createAgentServer({
+  config: {
+    model: 'claude-sonnet-4-6',           // Default model for all sessions
+  },
+  constraints: {
+    maxModel: 'claude-sonnet-4-6',        // Cap: clients can't request opus
+    // OR use an explicit allowlist:
+    allowedModels: ['claude-haiku-3-5', 'claude-sonnet-4-6'],
+  },
+});
+```
+
+| Model | Tier | Best For |
+|---|---|---|
+| `claude-haiku-3-5` | Fast | Quick tasks, low cost |
+| `claude-sonnet-4-6` | Balanced | General use (default) |
+| `claude-opus-4-6` | Capable | Complex reasoning |
+
+Clients request a model via `POST /chat/start`:
+
+```json
+{ "config": { "model": "claude-opus-4-6" } }
+```
+
+If the requested model exceeds `maxModel`, the server clamps it down and returns a warning.
+
+### Tools & Permissions
+
+The server defines the superset of tools. Clients can narrow but never expand.
+
+```javascript
+createAgentServer({
+  config: {
+    tools: ['Bash(*)', 'Read', 'Write', 'Edit', 'Glob', 'Grep'],
+    disallowedTools: ['Write'],           // Block Write for all sessions
+    permissionMode: 'bypassPermissions',  // or 'default' for interactive approval
+  },
+  constraints: {
+    disallowedTools: ['Bash(rm -rf *)'],  // Hard block at constraint level
+  },
+});
+```
+
+| `permissionMode` | Behavior |
+|---|---|
+| `'bypassPermissions'` | All tool calls auto-approved (default, best for server use) |
+| `'default'` | Requires interactive approval (typically for local dev) |
+
+Client narrowing example — request only read tools:
+
+```json
+{ "config": { "tools": ["Read", "Glob", "Grep"] } }
+```
+
+### System Prompts
+
+Server and client system prompts are concatenated (server first):
+
+```javascript
+createAgentServer({
+  config: {
+    systemPrompt: 'You are a code review assistant. Focus on security issues.',
+  },
+});
+```
+
+Client appends context:
+
+```json
+{ "config": { "systemPrompt": "The user is working on a React project." } }
+```
+
+Resolved prompt: `"You are a code review assistant. Focus on security issues.\n\nThe user is working on a React project."`
+
+### Plugins
+
+Plugins extend Claude Code with custom skills. Server-only — clients cannot inject plugins.
+
+```javascript
+createAgentServer({
+  config: {
+    plugins: [
+      { type: 'local', path: './my-plugin' },          // Local plugin directory
+      { type: 'local', path: '/absolute/path/plugin' }, // Absolute path
+    ],
+  },
+});
+```
+
+A plugin directory should contain a `SKILL.md` file with the skill definition. See the [Claude Code plugin docs](https://docs.anthropic.com/en/docs/claude-code/plugins) for the full format.
+
+### MCP Servers
+
+Connect Claude Code to external tool servers via the [Model Context Protocol](https://modelcontextprotocol.io). Server-only — clients cannot add MCP servers.
+
+```javascript
+createAgentServer({
+  config: {
+    mcpServers: {
+      'my-database': {
+        command: 'npx',
+        args: ['-y', '@my-org/db-mcp-server'],
+        env: { DATABASE_URL: 'postgres://...' },
+      },
+      'file-search': {
+        command: 'node',
+        args: ['./mcp-servers/search.js'],
+      },
+      'remote-api': {
+        url: 'https://mcp.example.com/sse',   // SSE-based remote MCP
+      },
+    },
+  },
+});
+```
+
+Each MCP server definition follows the Claude Code format:
+
+| Field | Type | Description |
+|---|---|---|
+| `command` | string | CLI binary to spawn |
+| `args` | string[] | Arguments for the command |
+| `env` | object | Environment variables |
+| `url` | string | URL for remote (SSE) MCP servers |
+
+### Agents (Subagents)
+
+Define specialized subagents the server exposes. Clients can select from the set but cannot define new ones.
+
+```javascript
+createAgentServer({
+  config: {
+    agents: {
+      reviewer: {
+        description: 'Reviews code for bugs and security issues',
+        prompt: 'You are a senior code reviewer...',
+        tools: ['Read', 'Grep', 'Glob'],
+      },
+      writer: {
+        description: 'Writes new code and tests',
+        prompt: 'You are a senior engineer...',
+        tools: ['Read', 'Write', 'Edit', 'Bash(*)'],
+      },
+    },
+  },
+});
+```
+
+Client selects agents by name:
+
+```json
+{ "config": { "agents": ["reviewer"] } }
+```
+
+### Working Directory & Settings
+
+```javascript
+createAgentServer({
+  config: {
+    cwd: '/path/to/project',                // Working directory for Claude Code
+    settingSources: ['user', 'project'],     // Where to read .claude settings from
+    maxTurns: 50,                            // Max agentic turns per message
+    includeToolResults: true,                // Stream tool output to clients
+  },
+  constraints: {
+    maxTurns: 100,                           // Hard cap even if client requests more
+  },
+});
+```
+
+### Hooks (Server Events)
+
+Monitor and react to session lifecycle events:
+
+```javascript
+createAgentServer({
+  hooks: {
+    onSessionStart: ({ sessionId, config }) => {
+      console.log(`Session ${sessionId} started with model ${config.model}`);
+    },
+    onSessionEnd: ({ sessionId }) => {
+      console.log(`Session ${sessionId} ended`);
+    },
+    onMessage: (envelope) => {
+      // Every protocol message (stream, assistant, tool-use, etc.)
+    },
+    onToolUse: (payload, sessionId) => {
+      console.log(`Tool: ${payload.toolName} in session ${sessionId}`);
+      // payload: { toolName, toolId, input }
+    },
+    onError: (err) => {
+      console.error('Agent error:', err.message);
+    },
+    onClientConnect: ({ clientId, transport }) => {
+      console.log(`Client ${clientId} connected via ${transport}`);
+    },
+    onClientDisconnect: ({ clientId }) => {
+      console.log(`Client ${clientId} disconnected`);
+    },
+  },
+});
+```
+
+### Full Configuration Example
+
+A production server with all options:
+
+```javascript
+const agent = createAgentServer({
+  config: {
+    model: 'claude-sonnet-4-6',
+    tools: ['Read', 'Write', 'Edit', 'Bash(*)', 'Glob', 'Grep'],
+    disallowedTools: ['Bash(rm -rf *)'],
+    permissionMode: 'bypassPermissions',
+    systemPrompt: 'You are a helpful coding assistant for an e-commerce platform.',
+    cwd: '/app/workspace',
+    maxTurns: 50,
+    includeToolResults: true,
+    settingSources: ['user', 'project'],
+    plugins: [
+      { type: 'local', path: './plugins/db-helper' },
+    ],
+    mcpServers: {
+      postgres: {
+        command: 'npx',
+        args: ['-y', '@modelcontextprotocol/server-postgres'],
+        env: { DATABASE_URL: process.env.DATABASE_URL },
+      },
+    },
+    agents: {
+      reviewer: {
+        description: 'Code reviewer',
+        prompt: 'Review code for bugs, security, and performance.',
+        tools: ['Read', 'Grep'],
+      },
+    },
+  },
+  constraints: {
+    maxModel: 'claude-sonnet-4-6',
+    disallowedTools: [],
+    maxTurns: 100,
+  },
+  hooks: {
+    onSessionStart: ({ sessionId, config }) => {
+      console.log(`[${new Date().toISOString()}] Session: ${sessionId} (${config.model})`);
+    },
+    onToolUse: (payload, sessionId) => {
+      console.log(`[tool] ${payload.toolName} in ${sessionId}`);
+    },
+    onError: (err) => {
+      console.error('[error]', err.message);
+    },
+  },
+});
+
+agent.listen(3456);
+```
 
 ---
 
@@ -349,24 +593,36 @@ node examples/minimal-chat/server.js
 
 ## Testing
 
-**292 total tests** across Node.js and Swift:
+**327+ total tests** across Node.js, Swift, and Argus YAML:
 
 | Tier | Command | Tests | What It Tests |
 |---|---|---|---|
-| Unit | `npm run test:unit` | ~170 | Protocol, server logic, client hooks, components, vanilla client |
+| Unit | `npm run test:unit` | ~200 | Protocol, server logic, config (MCPs, plugins, agents, permissions), client hooks, components, vanilla client |
 | Integration | `npm run test:integration` | ~50 | Real HTTP server, WebSocket handshake, config negotiation, macOS server |
 | E2E (SDK) | `npm run test:e2e` | 5 | Real Claude Agent SDK via local CLI (no API key needed) |
+| E2E (Web) | `npm run test:e2e` | 7 | Web app HTML, health, config endpoint, sessions, WebSocket handshake |
 | E2E (macOS) | `npm run test:e2e:macos` | 4 | Build macOS app, server health, session creation |
-| E2E (Browser) | `npm run test:e2e:browser` | — | Browser tests via Argus MCP against demo apps |
+| Argus (Web UI) | `tests/argus/web-quickstart.yaml` | 4 | Browser: Connected status, Send button, input field |
+| Argus (Web API) | `tests/argus/web-api.yaml` | 17 | REST: health, config, sessions, validation, 404 |
+| Argus (macOS UI) | `tests/argus/macos-app.yaml` | 4 | Native: title, connected status, empty state |
+| Argus (macOS API) | `tests/argus/macos-api.yaml` | 8 | Embedded server: health, sessions |
 | Swift | `swift test` (in `examples/macos-app/AgentChat`) | 49 | Models, settings, view model, server process |
 
 ```bash
-npm test                  # All Node.js tests (243)
-npm run test:e2e          # Real Claude Code CLI
+npm test                  # All Node.js tests (278)
+npm run test:e2e          # Real Claude Code CLI + web app
 npm run test:coverage     # Coverage report
 
 # Swift tests
 cd examples/macos-app/AgentChat && swift test   # 49 tests
+
+# Argus regression tests (requires Argus MCP + running apps)
+# Web: node examples/minimal-chat/server.js, then:
+argus test tests/argus/web-quickstart.yaml
+argus test tests/argus/web-api.yaml
+# macOS: swift run in examples/macos-app/AgentChat, then:
+argus test tests/argus/macos-app.yaml
+argus test tests/argus/macos-api.yaml
 ```
 
 ---

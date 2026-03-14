@@ -1,0 +1,21 @@
+# Test: macOS AgentChat App (Multi-Session)
+# Suite: regression
+# Platform: macos
+# Tags: macos, native, embedded-server, multi-session
+
+appName: AgentChat
+---
+- assertVisible:
+    text: "AgentChat"
+
+- assertVisible:
+    text: "Connected"
+
+- assertVisible:
+    text: "Start a conversation"
+
+- assert:
+    type: ai
+    prompt: "The macOS app has a sidebar on the left showing a New Chat button and a No sessions yet message"
+
+- takeScreenshot: "macos-agentchat-multi-session"

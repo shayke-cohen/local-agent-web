@@ -96,6 +96,17 @@ npm run test:e2e:macos
 
 Builds the macOS binary, starts the agent-web server, and verifies the binary exists, server is healthy, sessions work, and WebSocket is accessible.
 
+### Argus Regression Tests (12 tests)
+
+With the app running (`swift run`), run:
+
+```bash
+argus test tests/argus/macos-app.yaml      # 4 UI tests: title, connected, empty state
+argus test tests/argus/macos-api.yaml       # 8 API tests: health, sessions, server status
+```
+
+These test the running macOS app via Argus MCP — verifying the native UI renders correctly and the embedded server responds to API requests.
+
 ## Features
 
 - **Embedded server** — no separate terminal required

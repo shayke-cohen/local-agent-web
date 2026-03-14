@@ -1,0 +1,68 @@
+# Test: Web Quickstart API Endpoints
+# Suite: regression
+# Platform: server
+# Tags: api, rest, config, sessions
+
+serverUrl: http://localhost:3456
+---
+- request:
+    method: GET
+    url: /health
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.status"
+    expected: "ok"
+- assertBody:
+    jsonPath: "$.version"
+    expected: "0.1.0"
+
+- request:
+    method: GET
+    url: /chat/config
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.config.model"
+    expected: "claude-sonnet-4-6"
+
+- request:
+    method: POST
+    url: /chat/start
+    headers:
+      Content-Type: application/json
+    body:
+      config: {}
+    capture:
+      sessionId: "$.sessionId"
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.ok"
+    expected: true
+
+- request:
+    method: POST
+    url: /chat/start
+    headers:
+      Content-Type: application/json
+    body:
+      config:
+        tools:
+          - Read
+        systemPrompt: "Be brief."
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.ok"
+    expected: true
+
+- request:
+    method: POST
+    url: /chat/message
+    headers:
+      Content-Type: application/json
+    body:
+      text: "hello"
+- assertStatus: 400
+
+- request:
+    method: GET
+    url: /nonexistent
+- assertStatus: 404

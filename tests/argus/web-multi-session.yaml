@@ -1,0 +1,59 @@
+# Test: Web Multi-Session API
+# Suite: regression
+# Platform: server
+# Tags: api, multi-session, session-history
+
+serverUrl: http://localhost:3456
+---
+- request:
+    method: POST
+    url: /chat/start
+    headers:
+      Content-Type: application/json
+    body:
+      config: {}
+    capture:
+      session1: "$.sessionId"
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.ok"
+    expected: true
+
+- request:
+    method: POST
+    url: /chat/start
+    headers:
+      Content-Type: application/json
+    body:
+      config: {}
+    capture:
+      session2: "$.sessionId"
+- assertStatus: 200
+- assertBody:
+    jsonPath: "$.ok"
+    expected: true
+
+- request:
+    method: POST
+    url: /chat/start
+    headers:
+      Content-Type: application/json
+    body:
+      config:
+        tools:
+          - Read
+          - Grep
+        systemPrompt: "Session 3 context"
+    capture:
+      session3: "$.sessionId"
+- assertStatus: 200
+
+- request:
+    method: GET
+    url: /health
+- assertStatus: 200
+
+- request:
+    method: GET
+    url: /chat/sessions
+- assertStatus: 200

@@ -1,0 +1,23 @@
+# Test: Web Quickstart Demo (Multi-Session)
+# Suite: regression
+# Platform: web
+# Tags: web, quickstart, ui, multi-session
+
+url: http://localhost:3456
+---
+- assertVisible:
+    text: "Connected"
+
+- assertVisible:
+    text: "Send"
+
+- assertVisible:
+    selector: "#input"
+
+- assertVisible:
+    text: "Sessions"
+
+- assertVisible:
+    text: "+ New"
+
+- takeScreenshot: "web-quickstart-multi-session"
