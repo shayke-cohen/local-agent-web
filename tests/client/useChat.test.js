@@ -4,8 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
-import { useChat } from '../../src/client/hooks/useChat.js';
-import { ClaudeContext } from '../../src/client/ClaudeProvider.jsx';
+import { useChat, ClaudeContext } from '@shaykec/agent-web/react';
 import {
   MSG_CHAT_STREAM,
   MSG_CHAT_ASSISTANT,
@@ -16,7 +15,7 @@ import {
   MSG_CHAT_USER,
   MSG_SESSION_CREATED,
   MSG_SESSION_RESUMED,
-} from '../../src/protocol/messages.js';
+} from '@shaykec/agent-web/protocol';
 
 function makeContextValue(overrides = {}) {
   return {

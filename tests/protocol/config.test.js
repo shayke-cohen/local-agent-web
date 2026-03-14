@@ -7,7 +7,7 @@ import {
   isModelAllowed,
   clampModel,
   validateConfig,
-} from '../../src/protocol/config.js';
+} from '@shaykec/agent-web/protocol';
 
 describe('protocol/config', () => {
   describe('DEFAULT_CONFIG', () => {

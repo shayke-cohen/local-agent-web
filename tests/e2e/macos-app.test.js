@@ -15,7 +15,7 @@ import { execSync, spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createAgentServer } from '../../src/server/middleware.js';
+import { createAgentServer } from '@shaykec/agent-web/server';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, '../..');

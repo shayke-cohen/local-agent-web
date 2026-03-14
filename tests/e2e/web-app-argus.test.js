@@ -13,7 +13,7 @@ import { createServer } from 'http';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createAgentServer } from '../../src/server/index.js';
+import { createAgentServer } from '@shaykec/agent-web/server';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

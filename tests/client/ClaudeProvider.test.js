@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React, { useContext } from 'react';
-import { ClaudeProvider, ClaudeContext } from '../../src/client/ClaudeProvider.jsx';
+import { ClaudeProvider, ClaudeContext } from '@shaykec/agent-web/react';
 
 class MockWebSocket {
   static OPEN = 1;

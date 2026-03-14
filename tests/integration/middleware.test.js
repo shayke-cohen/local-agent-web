@@ -4,8 +4,7 @@ import { createServer } from 'http';
 // We test the middleware's HTTP handling without the Agent SDK.
 // The SDK is only needed when actually creating sessions.
 
-import { ConfigResolver } from '../../src/server/config-resolver.js';
-import { Transport } from '../../src/server/transport.js';
+import { ConfigResolver, Transport } from '@shaykec/agent-web/server';
 
 describe('integration/middleware HTTP endpoints', () => {
   let server;

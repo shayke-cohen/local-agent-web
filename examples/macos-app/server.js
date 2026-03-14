@@ -5,7 +5,7 @@
  * The macOS app connects to ws://localhost:4020/ws
  */
 
-import { createAgentServer } from '../../src/server/index.js';
+import { createAgentServer } from '@shaykec/agent-web/server';
 
 const PORT = parseInt(process.env.PORT, 10) || 4020;
 

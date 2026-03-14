@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { ClaudeChat } from '../../../src/client/components/ClaudeChat.jsx';
+import { ClaudeChat } from '@shaykec/agent-web/components';
 
 class MockWebSocket {
   static OPEN = 1;

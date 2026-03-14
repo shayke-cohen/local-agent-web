@@ -4,7 +4,7 @@ import {
   createEnvelope,
   parseEnvelope,
   serializeEnvelope,
-} from '../../src/protocol/envelope.js';
+} from '@shaykec/agent-web/protocol';
 
 describe('protocol/envelope', () => {
   describe('PROTOCOL_VERSION', () => {

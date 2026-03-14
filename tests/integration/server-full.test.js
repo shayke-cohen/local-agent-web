@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { createAgentServer } from '../../src/server/middleware.js';
-import { SessionManager } from '../../src/server/session-manager.js';
-import { createEnvelope, PROTOCOL_VERSION } from '../../src/protocol/envelope.js';
-import { MSG_SYS_CONNECT } from '../../src/protocol/messages.js';
+import { createAgentServer, SessionManager } from '@shaykec/agent-web/server';
+import { createEnvelope, PROTOCOL_VERSION, MSG_SYS_CONNECT } from '@shaykec/agent-web/protocol';
 
 function mockSDK() {
   let callCount = 0;

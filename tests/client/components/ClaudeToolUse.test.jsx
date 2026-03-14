@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { ClaudeToolUse } from '../../../src/client/components/ClaudeToolUse.jsx';
+import { ClaudeToolUse } from '@shaykec/agent-web/components';
 
 describe('ClaudeToolUse component', () => {
   it('renders tool-use message with tool name', () => {

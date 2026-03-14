@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useConnection } from '../../src/client/hooks/useConnection.js';
+import { useConnection } from '@shaykec/agent-web/react';
 
 class MockWebSocket {
   static CONNECTING = 0;

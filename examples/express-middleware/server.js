@@ -8,7 +8,7 @@
  */
 
 import { createServer } from 'http';
-import { createAgentServer } from '../../src/server/index.js';
+import { createAgentServer } from '@shaykec/agent-web/server';
 
 const PORT = parseInt(process.env.PORT, 10) || 4014;
 

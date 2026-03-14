@@ -20,7 +20,7 @@ import {
   ChatStatus,
   isKnownType,
   isTypeInCategory,
-} from '../../src/protocol/messages.js';
+} from '@shaykec/agent-web/protocol';
 
 describe('protocol/messages', () => {
   describe('message type constants', () => {

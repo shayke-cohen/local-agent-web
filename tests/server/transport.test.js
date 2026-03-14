@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Transport, generateClientId } from '../../src/server/transport.js';
+import { Transport, generateClientId } from '@shaykec/agent-web/server';
 
 describe('server/Transport', () => {
   let transport;

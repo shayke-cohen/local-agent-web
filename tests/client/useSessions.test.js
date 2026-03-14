@@ -4,8 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
-import { useSessions } from '../../src/client/hooks/useSessions.js';
-import { ClaudeContext } from '../../src/client/ClaudeProvider.jsx';
+import { useSessions, ClaudeContext } from '@shaykec/agent-web/react';
 
 function makeContextValue(overrides = {}) {
   return {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SessionManager } from '../../src/server/session-manager.js';
+import { SessionManager } from '@shaykec/agent-web/server';
 
 // Mock the Agent SDK
 const mockStream = async function* (messages) {

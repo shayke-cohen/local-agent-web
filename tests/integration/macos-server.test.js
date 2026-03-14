@@ -6,9 +6,8 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { WebSocket } from 'ws';
-import { createAgentServer } from '../../src/server/middleware.js';
-import { createEnvelope, PROTOCOL_VERSION } from '../../src/protocol/envelope.js';
-import { MSG_SYS_CONNECT } from '../../src/protocol/messages.js';
+import { createAgentServer } from '@shaykec/agent-web/server';
+import { createEnvelope, PROTOCOL_VERSION, MSG_SYS_CONNECT } from '@shaykec/agent-web/protocol';
 
 describe('macOS Demo Server Integration', () => {
   let server;

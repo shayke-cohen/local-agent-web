@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
-import { ClaudeMessage } from '../../../src/client/components/ClaudeMessage.jsx';
+import { ClaudeMessage } from '@shaykec/agent-web/components';
 
 describe('ClaudeMessage component', () => {
   it('renders a user message aligned right', () => {

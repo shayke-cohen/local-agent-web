@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ConfigResolver } from '../../src/server/config-resolver.js';
+import { ConfigResolver } from '@shaykec/agent-web/server';
 
 describe('server/ConfigResolver — advanced config', () => {
   describe('MCP servers', () => {

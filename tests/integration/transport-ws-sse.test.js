@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { Transport } from '../../src/server/transport.js';
-import { createEnvelope, PROTOCOL_VERSION } from '../../src/protocol/envelope.js';
-import { MSG_SYS_CONNECT, MSG_CHAT_STREAM } from '../../src/protocol/messages.js';
+import { Transport } from '@shaykec/agent-web/server';
+import { createEnvelope, PROTOCOL_VERSION, MSG_SYS_CONNECT, MSG_CHAT_STREAM } from '@shaykec/agent-web/protocol';
 
 describe('integration/transport WS + SSE', () => {
   let server;

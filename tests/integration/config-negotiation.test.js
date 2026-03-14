@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
-import { createAgentServer } from '../../src/server/middleware.js';
+import { createAgentServer } from '@shaykec/agent-web/server';
 
 function mockSDK() {
   let n = 0;
