@@ -174,7 +174,7 @@ All messages use a standard envelope:
 
 ## Examples
 
-Five reference implementations, each serving as both documentation and E2E test target:
+Six reference implementations, each serving as both documentation and E2E test target:
 
 | Example | Port | Integration Type |
 |---------|------|-----------------|
@@ -183,6 +183,7 @@ Five reference implementations, each serving as both documentation and E2E test 
 | [`vanilla-js`](examples/vanilla-js/) | 4012 | Framework-agnostic `ClaudeClient` |
 | [`express-middleware`](examples/express-middleware/) | 4014 | Express `app.use()` + `basePath` routing |
 | [`multi-session`](examples/multi-session/) | 4015 | Config negotiation + multiple concurrent sessions |
+| [`macos-app`](examples/macos-app/) | 4020 | Native macOS SwiftUI app via WebSocket |
 
 Run any example:
 ```bash
@@ -197,14 +198,14 @@ node examples/<name>/server.js
 |------|---------|-------------|-------|
 | Unit | `npm run test:unit` | node + jsdom | Protocol, server, client, components, vanilla |
 | Integration | `npm run test:integration` | node | Real HTTP server, WS handshake, config negotiation |
-| E2E (SDK) | `npm run test:e2e` | node | Real Claude Agent SDK (requires `ANTHROPIC_API_KEY`) |
+| E2E (SDK) | `npm run test:e2e` | node | Real Claude Agent SDK (uses local Claude Code CLI) |
 | E2E (Browser) | `npm run test:e2e:browser` | browser | Argus YAML tests against demo apps |
 
 ```bash
 npm test              # All tests (221+)
 npm run test:unit     # Unit tests only
 npm run test:integration  # Integration only
-ANTHROPIC_API_KEY=sk-ant-... npm run test:e2e  # E2E with real SDK
+npm run test:e2e          # E2E with real Claude Code CLI
 npm run test:e2e:browser  # Browser tests via Argus MCP
 npm run test:coverage # Coverage report
 ```

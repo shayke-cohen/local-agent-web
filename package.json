@@ -29,6 +29,7 @@
     "example:vanilla": "node examples/vanilla-js/server.js",
     "example:express": "node examples/express-middleware/server.js",
     "example:multi": "node examples/multi-session/server.js",
+    "example:macos": "node examples/macos-app/server.js",
     "lint": "echo 'No linter configured yet'"
   },
   "keywords": [
