@@ -192,7 +192,7 @@ describe('server/ConfigResolver', () => {
 
       expect(opts.model).toBe('claude-sonnet-4-6');
       expect(opts.allowedTools).toBeDefined();
-      expect(opts.includePartialMessages).toBe(true);
+      expect(opts.allowDangerouslySkipPermissions).toBe(true);
     });
 
     it('includes plugins when present', () => {
