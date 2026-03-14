@@ -103,4 +103,36 @@ describe('ClaudeProvider', () => {
     expect(fn1).not.toHaveBeenCalled();
     expect(fn2).not.toHaveBeenCalled();
   });
+
+  it('accepts onMessage prop for raw message routing', () => {
+    const onMessage = vi.fn();
+    const wrapper = ({ children }) =>
+      React.createElement(ClaudeProvider, { url: 'http://localhost:3456', onMessage }, children);
+
+    const { result } = renderHook(() => useContext(ClaudeContext), { wrapper });
+    expect(result.current).toBeTruthy();
+  });
+
+  it('accepts handshake prop', () => {
+    const wrapper = ({ children }) =>
+      React.createElement(ClaudeProvider, {
+        url: 'http://localhost:3456',
+        handshake: { clientType: 'canvas', capabilities: ['quiz'] },
+      }, children);
+
+    const { result } = renderHook(() => useContext(ClaudeContext), { wrapper });
+    expect(result.current).toBeTruthy();
+  });
+
+  it('accepts wsPath and ssePath props', () => {
+    const wrapper = ({ children }) =>
+      React.createElement(ClaudeProvider, {
+        url: 'http://localhost:3456',
+        wsPath: '/ws/chat',
+        ssePath: '/sse/chat',
+      }, children);
+
+    const { result } = renderHook(() => useContext(ClaudeContext), { wrapper });
+    expect(result.current).toBeTruthy();
+  });
 });

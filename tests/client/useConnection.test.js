@@ -169,4 +169,44 @@ describe('useConnection', () => {
     expect(result.current.status).toBe('disconnected');
     expect(result.current.transport).toBeNull();
   });
+
+  it('uses custom wsPath option', async () => {
+    renderHook(() =>
+      useConnection({ url: 'http://localhost:3456', wsPath: '/ws/chat' })
+    );
+
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(MockWebSocket.instances[0].url).toBe('ws://localhost:3456/ws/chat');
+  });
+
+  it('merges custom handshake fields into sys:connect', async () => {
+    renderHook(() =>
+      useConnection({
+        url: 'http://localhost:3456',
+        handshake: { clientType: 'canvas', capabilities: ['quiz', 'dashboard'] },
+      })
+    );
+
+    await vi.advanceTimersByTimeAsync(50);
+
+    const ws = MockWebSocket.instances[0];
+    const handshake = JSON.parse(ws._sent[0]);
+    expect(handshake.type).toBe('sys:connect');
+    expect(handshake.payload.clientType).toBe('canvas');
+    expect(handshake.payload.capabilities).toEqual(['quiz', 'dashboard']);
+    expect(handshake.payload.protocolVersion).toBeDefined();
+  });
+
+  it('uses default clientType when no handshake provided', async () => {
+    renderHook(() =>
+      useConnection({ url: 'http://localhost:3456' })
+    );
+
+    await vi.advanceTimersByTimeAsync(50);
+
+    const ws = MockWebSocket.instances[0];
+    const handshake = JSON.parse(ws._sent[0]);
+    expect(handshake.payload.clientType).toBe('browser');
+  });
 });

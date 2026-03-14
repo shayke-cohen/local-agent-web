@@ -14,10 +14,20 @@ import { PROTOCOL_VERSION } from '../../protocol/envelope.js';
  * @param {string} options.url - Server URL (e.g., 'ws://localhost:3456' or 'http://localhost:3456')
  * @param {function} [options.onMessage] - Callback for incoming messages
  * @param {boolean} [options.autoConnect=true] - Connect on mount
+ * @param {object} [options.handshake] - Extra fields merged into sys:connect payload
+ * @param {string} [options.wsPath='/ws'] - WebSocket endpoint path
+ * @param {string} [options.ssePath='/sse'] - SSE endpoint path
  * @returns {{ status, transport, sendMessage, sendEvent }}
  */
 export function useConnection(options = {}) {
-  const { url, onMessage, autoConnect = true } = options;
+  const {
+    url,
+    onMessage,
+    autoConnect = true,
+    handshake,
+    wsPath = '/ws',
+    ssePath = '/sse',
+  } = options;
 
   const [status, setStatus] = useState('disconnected');
   const [transport, setTransport] = useState(null);
@@ -68,6 +78,11 @@ export function useConnection(options = {}) {
     }
   }, []);
 
+  const handshakeRef = useRef(handshake);
+  useEffect(() => {
+    handshakeRef.current = handshake;
+  }, [handshake]);
+
   const sendHandshake = useCallback((via) => {
     const msg = {
       v: PROTOCOL_VERSION,
@@ -75,6 +90,7 @@ export function useConnection(options = {}) {
       payload: {
         clientType: 'browser',
         protocolVersion: PROTOCOL_VERSION,
+        ...handshakeRef.current,
       },
       source: 'client',
       timestamp: Date.now(),
@@ -100,7 +116,7 @@ export function useConnection(options = {}) {
     setStatus('connecting');
 
     try {
-      const sse = new EventSource(`${httpUrl}/sse`);
+      const sse = new EventSource(`${httpUrl}${ssePath}`);
       sseRef.current = sse;
 
       sse.onopen = () => {
@@ -126,7 +142,7 @@ export function useConnection(options = {}) {
       setTransport(null);
       scheduleReconnect();
     }
-  }, [httpUrl, handleMessage, scheduleReconnect]);
+  }, [httpUrl, ssePath, handleMessage, scheduleReconnect]);
 
   const connectWebSocket = useCallback(() => {
     if (!mountedRef.current) return;
@@ -134,7 +150,7 @@ export function useConnection(options = {}) {
     setStatus('connecting');
 
     try {
-      const ws = new WebSocket(`${wsUrl}/ws`);
+      const ws = new WebSocket(`${wsUrl}${wsPath}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -172,7 +188,7 @@ export function useConnection(options = {}) {
     } catch {
       connectSSE();
     }
-  }, [wsUrl, cleanup, handleMessage, sendHandshake, connectSSE, scheduleReconnect]);
+  }, [wsUrl, wsPath, cleanup, handleMessage, sendHandshake, connectSSE, scheduleReconnect]);
 
   /**
    * Send a raw envelope via WebSocket.

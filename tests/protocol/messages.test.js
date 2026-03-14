@@ -7,6 +7,8 @@ import {
   MSG_CHAT_STATUS,
   MSG_CHAT_ERROR,
   MSG_CHAT_USER,
+  MSG_CHAT_SEND,
+  MSG_CHAT_STOP,
   MSG_SESSION_CREATED,
   MSG_SESSION_RESUMED,
   MSG_SESSION_LIST,
@@ -32,6 +34,8 @@ describe('protocol/messages', () => {
       expect(MSG_CHAT_STATUS).toBe('chat:status');
       expect(MSG_CHAT_ERROR).toBe('chat:error');
       expect(MSG_CHAT_USER).toBe('chat:user');
+      expect(MSG_CHAT_SEND).toBe('chat:send');
+      expect(MSG_CHAT_STOP).toBe('chat:stop');
     });
 
     it('defines all session message types', () => {
@@ -54,8 +58,8 @@ describe('protocol/messages', () => {
   });
 
   describe('MESSAGE_TYPES set', () => {
-    it('contains all 16 message types', () => {
-      expect(MESSAGE_TYPES.size).toBe(16);
+    it('contains all 18 message types', () => {
+      expect(MESSAGE_TYPES.size).toBe(18);
     });
 
     it('is a Set', () => {

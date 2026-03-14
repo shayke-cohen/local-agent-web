@@ -31,6 +31,12 @@ export const MSG_CHAT_ERROR = 'chat:error';
 /** User message (echoed back for multi-client sync) */
 export const MSG_CHAT_USER = 'chat:user';
 
+/** Client sends a chat message */
+export const MSG_CHAT_SEND = 'chat:send';
+
+/** Client requests generation stop */
+export const MSG_CHAT_STOP = 'chat:stop';
+
 // --- Session messages ---
 
 /** Session was created */
@@ -74,6 +80,8 @@ export const MESSAGE_TYPES = new Set([
   MSG_CHAT_STATUS,
   MSG_CHAT_ERROR,
   MSG_CHAT_USER,
+  MSG_CHAT_SEND,
+  MSG_CHAT_STOP,
   MSG_SESSION_CREATED,
   MSG_SESSION_RESUMED,
   MSG_SESSION_LIST,
