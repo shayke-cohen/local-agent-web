@@ -51,9 +51,21 @@ export class SessionManager {
       this._sdk = await import('@anthropic-ai/claude-agent-sdk');
       return this._sdk;
     } catch {
-      throw new Error(
-        'Agent SDK not installed. Run: npm install @anthropic-ai/claude-agent-sdk'
-      );
+      // SDK not resolved (e.g. corporate registry doesn't mirror it).
+      // Auto-install from the public npm registry as a fallback.
+      try {
+        const { execSync } = await import('child_process');
+        execSync(
+          'npm install @anthropic-ai/claude-agent-sdk --registry=https://registry.npmjs.org/ --no-save',
+          { stdio: 'pipe' }
+        );
+        this._sdk = await import('@anthropic-ai/claude-agent-sdk');
+        return this._sdk;
+      } catch {
+        throw new Error(
+          'Agent SDK not installed and auto-install failed. Run: npm install @anthropic-ai/claude-agent-sdk --registry=https://registry.npmjs.org/'
+        );
+      }
     }
   }
 

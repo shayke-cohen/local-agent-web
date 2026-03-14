@@ -1,6 +1,6 @@
 {
   "name": "@shaykec/agent-web",
-  "version": "0.3.2",
+  "version": "0.3.5",
   "description": "Generic framework for exposing Claude Code to web apps — server middleware, React hooks, and embeddable components",
   "type": "module",
   "main": "./src/index.js",
@@ -64,8 +64,10 @@
     "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
+  "optionalDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.63"
+  },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.76",
     "ws": "^8.16.0"
   },
   "peerDependencies": {
