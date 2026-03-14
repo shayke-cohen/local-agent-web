@@ -1,25 +1,53 @@
 # @shaykec/agent-web
 
-Generic framework for exposing Claude Code to web apps — server middleware, React hooks, embeddable components, and a vanilla JS client.
+A framework for adding Claude Code capabilities to any application — web, desktop, or server. Provides a Node.js server that wraps the [Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-sdk), a layered configuration model, and multiple client integration options.
 
-## Quick Start
+## How It Works
 
-### 1. Server (3 lines)
+```mermaid
+flowchart LR
+  App["Your App"]
+  Server["agent-web Server"]
+  SDK["Claude Agent SDK"]
+  CLI["Claude Code CLI"]
 
-```javascript
-import { createAgentServer } from '@shaykec/agent-web/server';
-
-const agent = createAgentServer({
-  config: {
-    model: 'claude-sonnet-4-6',
-    tools: ['Bash(*)', 'Read', 'Write', 'Edit', 'Glob', 'Grep'],
-  },
-});
-
-agent.listen(3456);
+  App <-->|"WS / SSE / REST"| Server
+  Server <-->|"sessions + config"| SDK
+  SDK <-->|"subprocess"| CLI
 ```
 
-### 2a. Embeddable Component (1 line)
+Your application talks to the agent-web server over standard protocols. The server manages sessions, resolves configuration, and streams Claude responses back. Claude Code runs locally via the SDK — no API key required if you have a Claude subscription.
+
+## When to Use What
+
+| I want to… | Use | Example |
+|---|---|---|
+| Drop a chat widget into my React app | **Embeddable Component** (`<ClaudeChat />`) | Product support bot, internal tool |
+| Build a custom chat UI with full control | **React Hooks** (`useChat`, `useSessions`) | IDE-like experience, branded AI assistant |
+| Add Claude to a non-React app (Vue, Svelte, vanilla) | **Vanilla JS Client** (`ClaudeClient`) | Any framework, or no framework |
+| Mount Claude as a route on my Express/Hono server | **Server Middleware** (`agent.middleware()`) | Multi-service backend, API gateway |
+| Run multiple concurrent conversations with config control | **Multi-Session** | Agent dashboard, team collaboration |
+| Build a native desktop app with Claude | **WebSocket Protocol** | macOS (SwiftUI), Electron, Tauri |
+
+---
+
+## Integration Architectures
+
+### 1. Embeddable Component
+
+Best for: quickly adding a chat widget to any React app.
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    RC["<ClaudeChat />"]
+  end
+  subgraph Node
+    AS["agent-web Server<br/>(standalone)"]
+  end
+  RC <-->|WS + REST| AS
+  AS <--> SDK["Agent SDK"]
+```
 
 ```jsx
 import { ClaudeChat } from '@shaykec/agent-web/components';
@@ -29,7 +57,26 @@ function App() {
 }
 ```
 
-### 2b. Custom UI with Hooks
+One line to render. The component handles connection, session management, streaming, tool-use display, and reconnection. Pass `config` props to control model, tools, and system prompt.
+
+### 2. React Hooks (Custom UI)
+
+Best for: full control over the UI while letting the framework handle protocol and state.
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    P["ClaudeProvider"]
+    H["useChat / useSessions"]
+    UI["Your Components"]
+    P --> H --> UI
+  end
+  subgraph Node
+    AS["agent-web Server"]
+  end
+  Browser <-->|WS + REST| AS
+  AS <--> SDK["Agent SDK"]
+```
 
 ```jsx
 import { ClaudeProvider, useChat, useSessions } from '@shaykec/agent-web/react';
@@ -45,11 +92,25 @@ function App() {
 function MyChatUI() {
   const { messages, send, stop, isStreaming, resolvedConfig } = useChat();
   const { sessions, create, resume } = useSessions();
-  // Build your own UI
+  // Render however you want
 }
 ```
 
-### 2c. Vanilla JS (no React)
+### 3. Vanilla JS Client
+
+Best for: non-React frameworks (Vue, Svelte, Angular) or plain HTML pages.
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    VC["ClaudeClient<br/>(vanilla JS)"]
+  end
+  subgraph Node
+    AS["agent-web Server"]
+  end
+  VC <-->|WS + REST| AS
+  AS <--> SDK["Agent SDK"]
+```
 
 ```javascript
 import { ClaudeClient } from '@shaykec/agent-web/client';
@@ -62,27 +123,90 @@ client.onMessage((msg) => console.log(msg));
 await client.send(sessionId, 'What files are here?');
 ```
 
-## Modules
+### 4. Server Middleware
 
-| Import | Description |
-|--------|-------------|
-| `@shaykec/agent-web/server` | `createAgentServer()`, `SessionManager`, `ConfigResolver`, `Transport` |
-| `@shaykec/agent-web/react` | `ClaudeProvider`, `useChat`, `useSessions`, `useConnection` |
-| `@shaykec/agent-web/components` | `ClaudeChat`, `ClaudeMessage`, `ClaudeToolUse` |
-| `@shaykec/agent-web/client` | `ClaudeClient` (vanilla JS) |
-| `@shaykec/agent-web/protocol` | Message types, `createEnvelope`, `parseEnvelope`, config schema |
+Best for: mounting Claude alongside existing routes on your HTTP server.
 
-## Server API
-
-### `createAgentServer(options)`
-
-Creates an agent-web server instance.
+```mermaid
+flowchart LR
+  subgraph Your Server
+    EX["Express / Hono / etc."]
+    MW["agent.middleware()"]
+    EX --> MW
+  end
+  subgraph External
+    SDK["Agent SDK"]
+  end
+  Client <-->|"HTTP + WS"| EX
+  MW <--> SDK
+```
 
 ```javascript
+import express from 'express';
+import { createAgentServer } from '@shaykec/agent-web/server';
+
+const app = express();
+const agent = createAgentServer({ config: { model: 'claude-sonnet-4-6' } });
+
+app.use('/claude', agent.middleware());
+agent.attachWebSocket(server, '/claude/ws');
+```
+
+### 5. Multi-Session + Config Control
+
+Best for: dashboards, admin tools, or apps that need multiple concurrent conversations with per-session configuration.
+
+```mermaid
+flowchart TB
+  subgraph Browser
+    T1["Session A<br/>model: haiku"]
+    T2["Session B<br/>model: sonnet"]
+    T3["Session C<br/>model: opus"]
+  end
+  subgraph Node
+    CR["ConfigResolver<br/>(merge + constrain)"]
+    SM["SessionManager<br/>(Map of sessions)"]
+    TR["Transport<br/>(broadcast)"]
+  end
+  T1 & T2 & T3 <-->|WS| TR
+  TR --> SM
+  SM --> CR
+  SM <--> SDK["Agent SDK"]
+```
+
+Each session can request its own model, tools, and system prompt. The server merges requests with defaults and enforces constraints (e.g., `maxModel`, `disallowedTools`). Messages are tagged with `sessionId` so clients route them correctly.
+
+### 6. Native Desktop App (macOS / Electron / Tauri)
+
+Best for: native apps that connect to the server via WebSocket.
+
+```mermaid
+flowchart LR
+  subgraph Desktop
+    SW["SwiftUI / Electron / Tauri"]
+    WC["WebSocket Client"]
+    SW --> WC
+  end
+  subgraph Node
+    AS["agent-web Server"]
+  end
+  WC <-->|"WS protocol"| AS
+  AS <--> SDK["Agent SDK"]
+```
+
+The macOS demo app uses SwiftUI with a native `URLSessionWebSocketTask` to connect to the same server. Any language/framework that speaks WebSocket can integrate — the [protocol](#protocol) is simple JSON envelopes.
+
+---
+
+## Server Setup
+
+```javascript
+import { createAgentServer } from '@shaykec/agent-web/server';
+
 const agent = createAgentServer({
   config: {               // Default session config
     model: 'claude-sonnet-4-6',
-    tools: ['Read', 'Write', 'Bash(*)'],
+    tools: ['Bash(*)', 'Read', 'Write', 'Edit', 'Glob', 'Grep'],
     systemPrompt: 'You are a helpful assistant.',
     plugins: [{ type: 'local', path: './my-plugin' }],
     agents: {
@@ -102,124 +226,147 @@ const agent = createAgentServer({
     onClientConnect: (info) => {},
     onClientDisconnect: (info) => {},
   },
-  port: 3456,
-  basePath: '',           // Prefix for all routes (e.g., '/api/claude')
 });
 
-// Standalone server
 agent.listen(3456);
-
-// Or as middleware on an existing server
-app.use('/claude', agent.middleware());
-
-// Attach WebSocket to existing HTTP server
-agent.attachWebSocket(httpServer, '/ws');
 ```
 
 ### REST Endpoints
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/chat/start` | POST | Create a new session (body: `{ config }`) |
-| `/chat/message` | POST | Send a message (body: `{ sessionId, text }`) |
-| `/chat/stop` | POST | Stop generation (body: `{ sessionId }`) |
-| `/chat/resume` | POST | Resume session (body: `{ sessionId, config }`) |
+|---|---|---|
+| `/chat/start` | POST | Create a new session (`{ config }`) |
+| `/chat/message` | POST | Send a message (`{ sessionId, text }`) |
+| `/chat/stop` | POST | Stop generation (`{ sessionId }`) |
+| `/chat/resume` | POST | Resume session (`{ sessionId, config }`) |
 | `/chat/sessions` | GET | List available sessions |
 | `/chat/config` | GET | Get server config (sanitized) |
 | `/health` | GET | Health check |
 | `/ws` | WS | WebSocket endpoint |
-| `/sse` | GET | SSE endpoint |
+| `/sse` | GET | SSE stream |
+
+---
 
 ## Configuration Model
 
-Config flows through a merge chain: **Component props** → **Provider defaults** → **Client request** → **Server merge + constraints** → **Agent SDK**.
+Config flows through a merge pipeline with clear precedence:
 
-| Control | Server | Provider | Component | Merge Rule |
-|---------|--------|----------|-----------|------------|
-| model | cap | request | request | clamped to maxModel |
-| tools | superset | narrow | narrow | intersection |
-| disallowedTools | block | block | block | union |
-| systemPrompt | base | append | append | concatenated |
-| plugins | define | — | — | server-only |
-| cwd | set | — | — | server-only |
-| permissionMode | set | — | — | server-only |
-| mcpServers | define | — | — | server-only |
-| maxTurns | cap | request | request | min() |
-| agents | define | select | select | server validates |
+```mermaid
+flowchart TD
+  CP["Component Props"] --> REQ["Client Request<br/>(POST /chat/start)"]
+  PD["Provider Config"] --> REQ
+  REQ --> MR["Server Merge"]
+  SD["Server Defaults"] --> MR
+  SC["Server Constraints"] --> MR
+  MR --> RC["Resolved Config"]
+  MR --> WN["Warnings<br/>(if clamped)"]
+  RC --> SO["SDK Options"]
+```
+
+| Field | Server | Client | Merge Rule |
+|---|---|---|---|
+| model | cap via `maxModel` | request | clamped to ceiling |
+| tools | superset | narrow | intersection (client can only reduce) |
+| disallowedTools | block | block | union (always honored) |
+| systemPrompt | base | append | concatenated |
+| maxTurns | cap | request | min() |
+| agents | define | select subset | server validates |
+| plugins, cwd, permissionMode, mcpServers | set | — | server-only (never sent to client) |
+
+---
 
 ## Protocol
 
-All messages use a standard envelope:
+All messages use a standard JSON envelope:
 
-```javascript
+```json
 {
-  v: 1,                    // Protocol version
-  type: 'chat:stream',     // Message type
-  payload: { delta: '...' }, // Type-specific data
-  source: 'server',        // Origin
-  timestamp: 1710000000,   // Unix ms
-  sessionId: 'uuid',       // Optional
+  "v": 1,
+  "type": "chat:stream",
+  "payload": { "delta": "..." },
+  "source": "server",
+  "timestamp": 1710000000,
+  "sessionId": "uuid"
 }
 ```
 
 ### Message Types
 
-**Chat**: `chat:stream`, `chat:assistant`, `chat:tool-use`, `chat:tool-result`, `chat:status`, `chat:error`, `chat:user`
+| Category | Types | Direction |
+|---|---|---|
+| Chat | `stream`, `assistant`, `tool-use`, `tool-result`, `status`, `error`, `user` | Server → Client |
+| Session | `created`, `resumed`, `list`, `closed` | Server → Client |
+| Config | `request`, `resolved` | Bidirectional |
+| System | `connect`, `disconnect`, `heartbeat` | Bidirectional |
 
-**Session**: `session:created`, `session:resumed`, `session:list`, `session:closed`
+### Transport
 
-**Config**: `config:request`, `config:resolved`
+- **WebSocket** (primary): bidirectional, real-time streaming. Client sends `sys:connect` handshake, server acknowledges with `clientId`.
+- **SSE** (fallback): server-push only. Client sends messages via REST POST. Auto-fallback if WS fails.
+- **REST**: stateless endpoints for session management and message sending. Always available.
 
-**System**: `sys:connect`, `sys:disconnect`, `sys:heartbeat`
+---
+
+## Modules
+
+| Import | Contents |
+|---|---|
+| `@shaykec/agent-web/server` | `createAgentServer()`, `SessionManager`, `ConfigResolver`, `Transport` |
+| `@shaykec/agent-web/react` | `ClaudeProvider`, `useChat`, `useSessions`, `useConnection` |
+| `@shaykec/agent-web/components` | `ClaudeChat`, `ClaudeMessage`, `ClaudeToolUse` |
+| `@shaykec/agent-web/client` | `ClaudeClient` (vanilla JS, framework-agnostic) |
+| `@shaykec/agent-web/protocol` | Message types, `createEnvelope`, `parseEnvelope`, config schema |
+
+---
 
 ## Examples
 
-Six reference implementations, each serving as both documentation and E2E test target:
+Six reference implementations — each serves as documentation, test target, and starting point:
 
-| Example | Port | Integration Type |
-|---------|------|-----------------|
-| [`react-embeddable`](examples/react-embeddable/) | 4010 | Drop-in `<ClaudeChat />` component |
-| [`react-custom-hooks`](examples/react-custom-hooks/) | 4011 | Custom UI with `useChat`/`useSessions` hooks |
-| [`vanilla-js`](examples/vanilla-js/) | 4012 | Framework-agnostic `ClaudeClient` |
-| [`express-middleware`](examples/express-middleware/) | 4014 | Express `app.use()` + `basePath` routing |
-| [`multi-session`](examples/multi-session/) | 4015 | Config negotiation + multiple concurrent sessions |
-| [`macos-app`](examples/macos-app/) | 4020 | Native macOS SwiftUI app via WebSocket |
+| Example | Port | Use Case |
+|---|---|---|
+| [`react-embeddable`](examples/react-embeddable/) | 4010 | Drop-in `<ClaudeChat />` widget |
+| [`react-custom-hooks`](examples/react-custom-hooks/) | 4011 | Custom UI with hooks |
+| [`vanilla-js`](examples/vanilla-js/) | 4012 | Framework-agnostic client |
+| [`express-middleware`](examples/express-middleware/) | 4014 | Express `app.use()` integration |
+| [`multi-session`](examples/multi-session/) | 4015 | Config negotiation + concurrent sessions |
+| [`macos-app`](examples/macos-app/) | 4020 | Native macOS SwiftUI app |
 
-Run any example:
 ```bash
 node examples/<name>/server.js
 ```
 
+---
+
 ## Testing
 
-### Test Tiers
-
-| Tier | Command | Environment | Tests |
-|------|---------|-------------|-------|
-| Unit | `npm run test:unit` | node + jsdom | Protocol, server, client, components, vanilla |
-| Integration | `npm run test:integration` | node | Real HTTP server, WS handshake, config negotiation |
-| E2E (SDK) | `npm run test:e2e` | node | Real Claude Agent SDK (uses local Claude Code CLI) |
-| E2E (Browser) | `npm run test:e2e:browser` | browser | Argus YAML tests against demo apps |
+| Tier | Command | What It Tests |
+|---|---|---|
+| Unit | `npm run test:unit` | Protocol, server logic, client hooks, components, vanilla client |
+| Integration | `npm run test:integration` | Real HTTP server, WebSocket handshake, config negotiation |
+| E2E (SDK) | `npm run test:e2e` | Real Claude Agent SDK via local CLI (no API key needed) |
+| E2E (Browser) | `npm run test:e2e:browser` | Browser tests via Argus MCP against demo apps |
+| macOS | `swift test` (in `examples/macos-app/AgentChat`) | Swift unit tests for models, settings, view model |
 
 ```bash
-npm test              # All tests (221+)
-npm run test:unit     # Unit tests only
-npm run test:integration  # Integration only
-npm run test:e2e          # E2E with real Claude Code CLI
-npm run test:e2e:browser  # Browser tests via Argus MCP
-npm run test:coverage # Coverage report
+npm test                  # All Node.js tests (234+)
+npm run test:e2e          # Real Claude Code CLI
+npm run test:coverage     # Coverage report
 ```
 
-## Architecture
-
-See [docs/architecture.md](docs/architecture.md) for system diagrams, data flows, protocol details, and security model.
+---
 
 ## Requirements
 
 - Node.js >= 18
 - `@anthropic-ai/claude-agent-sdk` (peer dependency, for server)
-- React >= 18 (peer dependency, for hooks/components)
+- React >= 18 (peer dependency, for hooks/components — optional)
+- Claude Code CLI (for E2E tests — optional)
+
+## Architecture
+
+See [docs/architecture.md](docs/architecture.md) for detailed system diagrams, data flows, session lifecycle, and security model.
 
 ## License
 
-MIT
+MIT — [github.com/shayke-cohen/local-agent-web](https://github.com/shayke-cohen/local-agent-web)

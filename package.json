@@ -20,6 +20,8 @@
     "test:integration": "vitest run tests/integration",
     "test:e2e": "vitest run tests/e2e",
     "test:e2e:browser": "node scripts/run-browser-tests.js",
+    "test:e2e:macos": "vitest run tests/e2e/macos-app.test.js",
+    "test:swift": "cd examples/macos-app/AgentChat && swift test",
     "test:all": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
@@ -44,6 +46,10 @@
     "embeddable"
   ],
   "author": "shaykec",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shayke-cohen/local-agent-web.git"
+  },
   "license": "MIT",
   "dependencies": {
     "ws": "^8.16.0"

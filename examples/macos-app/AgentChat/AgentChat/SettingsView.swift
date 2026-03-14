@@ -19,7 +19,7 @@ struct SettingsView: View {
                 LabeledContent("Protocol", value: "1.0.0")
 
                 Link("GitHub Repository",
-                     destination: URL(string: "https://github.com/shayke-cohen/agent-web")!)
+                     destination: URL(string: "https://github.com/shayke-cohen/local-agent-web")!)
                     .font(.caption)
             }
         }

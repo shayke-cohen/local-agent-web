@@ -5,9 +5,19 @@ let package = Package(
     name: "AgentChat",
     platforms: [.macOS(.v14)],
     targets: [
+        .target(
+            name: "AgentChatLib",
+            path: "Sources/AgentChatLib"
+        ),
         .executableTarget(
             name: "AgentChat",
+            dependencies: ["AgentChatLib"],
             path: "AgentChat"
+        ),
+        .testTarget(
+            name: "AgentChatTests",
+            dependencies: ["AgentChatLib"],
+            path: "Tests"
         ),
     ]
 )
