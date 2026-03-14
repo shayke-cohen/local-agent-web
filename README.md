@@ -7,11 +7,11 @@ A framework for adding Claude Code capabilities to any application — web, desk
 
 ### Web App — Multi-Session Chat
 
-![Web multi-session demo](https://raw.githubusercontent.com/shayke-cohen/local-agent-web/main/docs/screenshots/web-multi-session.png)
+![Web multi-session demo](docs/screenshots/web-multi-session.png)
 
 ### macOS App — Native SwiftUI with Embedded Server
 
-![macOS multi-session demo](https://raw.githubusercontent.com/shayke-cohen/local-agent-web/main/docs/screenshots/macos-multi-session.png)
+![macOS multi-session demo](docs/screenshots/macos-multi-session.png)
 
 ## Install
 
